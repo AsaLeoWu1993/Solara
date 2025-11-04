@@ -4000,7 +4000,10 @@ function parseLyrics(lyricText) {
     const lines = lyricText.split('\n');
     const lyrics = [];
 
-    lines.forEach(line => {
+    console.log('开始解析歌词，原始文本行数:', lines.length);
+    console.log('原始歌词文本示例:', lines[0] || '无内容');
+
+    lines.forEach((line, index) => {
         const match = line.match(/\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)/);
         if (match) {
             const minutes = parseInt(match[1]);
@@ -4043,6 +4046,13 @@ function parseLyrics(lyricText) {
     }
 
     state.lyricsData = lyrics.sort((a, b) => a.time - b.time);
+
+    console.log('歌词解析完成，解析出的歌词行数:', lyrics.length);
+    if (lyrics.length > 0) {
+        console.log('第一行歌词时间:', lyrics[0].time, '文本:', lyrics[0].text);
+        console.log('第一行字符数量:', lyrics[0].chars?.length || 0);
+    }
+
     displayLyrics();
 }
 
@@ -4067,6 +4077,8 @@ function clearLyricsContent() {
 
 // 修复：显示歌词 - 支持逐字高亮
 function displayLyrics() {
+    console.log('开始显示歌词，当前歌词数据行数:', state.lyricsData.length);
+
     const lyricsHtml = state.lyricsData.map((lyric, index) => {
         // 检查是否有字符数据
         if (lyric.chars && lyric.chars.length > 0) {
@@ -4082,6 +4094,9 @@ function displayLyrics() {
         }
     }).join("");
 
+    console.log('生成的歌词HTML长度:', lyricsHtml.length);
+    console.log('HTML内容预览:', lyricsHtml.substring(0, 200) + '...');
+
     setLyricsContentHtml(lyricsHtml);
     if (dom.lyrics) {
         dom.lyrics.dataset.placeholder = "default";
@@ -4095,27 +4110,23 @@ function displayLyrics() {
 let syncLyricsFrameId = null;
 let lastSyncTime = 0;
 
-// 修复：同步歌词 - 支持逐字高亮（优化版）
+// 修复：同步歌词 - 支持逐字高亮（调试版）
 function syncLyrics() {
     if (state.lyricsData.length === 0) return;
 
     const currentTime = dom.audioPlayer.currentTime;
 
-    // 节流：限制同步频率
-    if (currentTime - lastSyncTime < 0.05) { // 50ms 内只同步一次
-        return;
-    }
-    lastSyncTime = currentTime;
+    // 临时调试：每次都输出
+    console.log(`歌词同步调用: 时间=${currentTime.toFixed(2)}s, 歌词数量=${state.lyricsData.length}`);
 
+    // 移除节流限制，确保调试输出
     // 取消之前的动画帧请求
     if (syncLyricsFrameId) {
         cancelAnimationFrame(syncLyricsFrameId);
     }
 
-    // 使用 requestAnimationFrame 优化性能
-    syncLyricsFrameId = requestAnimationFrame(() => {
-        performLyricsSync(currentTime);
-    });
+    // 直接调用同步函数
+    performLyricsSync(currentTime);
 }
 
 // 实际执行歌词同步的函数
