@@ -195,6 +195,58 @@ app.options('*', (req, res) => {
     res.status(204).send();
 });
 
+// 处理调色板请求
+app.get('/palette', async (req, res) => {
+    try {
+        const imageUrl = req.query.image || req.query.url;
+
+        if (!imageUrl) {
+            return res.status(400).json({ error: "Missing image parameter" });
+        }
+
+        // 简化版调色板功能 - 返回默认调色板
+        const defaultPalette = {
+            source: imageUrl,
+            baseColor: "#1abc9c",
+            averageColor: "#2ecc71",
+            accentColor: "#3498db",
+            contrastColor: "#2c3e50",
+            gradients: {
+                light: {
+                    colors: ["#e0f5e9", "#c6f0e0", "#a3e4d7"],
+                    gradient: "linear-gradient(140deg, #e0f5e9 0%, #c6f0e0 45%, #a3e4d7 100%)"
+                },
+                dark: {
+                    colors: ["#0b1d1b", "#0f2f2c", "#123c36"],
+                    gradient: "linear-gradient(135deg, #0b1d1b 0%, #0f2f2c 55%, #123c36 100%)"
+                }
+            },
+            tokens: {
+                light: {
+                    primaryColor: "#1abc9c",
+                    primaryColorDark: "#12836d"
+                },
+                dark: {
+                    primaryColor: "#1abc9c",
+                    primaryColorDark: "#17a589"
+                }
+            }
+        };
+
+        res.set({
+            'Access-Control-Allow-Origin': '*',
+            'Content-Type': 'application/json; charset=utf-8',
+            'Cache-Control': 'public, max-age=3600'
+        });
+
+        res.status(200).json(defaultPalette);
+
+    } catch (error) {
+        console.error('Palette request failed:', error);
+        res.status(500).json({ error: "Failed to generate palette" });
+    }
+});
+
 // 添加错误处理
 process.on('uncaughtException', (error) => {
     console.error('Uncaught Exception:', error);

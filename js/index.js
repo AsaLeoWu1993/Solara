@@ -4123,6 +4123,11 @@ function performLyricsSync(currentTime) {
     let currentLineIndex = -1;
     let currentCharIndex = -1;
 
+    // 临时调试：检查歌词数据
+    if (state.lyricsData.length > 0) {
+        console.log(`歌词同步调试: 当前时间=${currentTime.toFixed(2)}s, 第一行歌词时间=${state.lyricsData[0].time}s`);
+    }
+
     // 找到当前应该高亮的行和字符
     for (let i = 0; i < state.lyricsData.length; i++) {
         const lyricLine = state.lyricsData[i];
@@ -4146,6 +4151,9 @@ function performLyricsSync(currentTime) {
     // 检查是否需要更新
     const needsUpdate = currentLineIndex !== state.currentLyricLine ||
                        (currentLineIndex >= 0 && currentCharIndex !== state.currentCharIndex);
+
+    // 临时调试：输出同步结果
+    console.log(`歌词同步结果: 当前行=${currentLineIndex}, 当前字符=${currentCharIndex}, 需要更新=${needsUpdate}`);
 
     if (needsUpdate) {
         state.currentLyricLine = currentLineIndex;
@@ -4178,17 +4186,27 @@ function performLyricsSync(currentTime) {
             // 只高亮当前行
             const currentElement = elements[currentLineIndex];
             if (currentElement) {
+                // 临时调试：检查找到的元素
+                console.log(`找到当前行元素:`, currentElement);
+                console.log(`元素内容:`, currentElement.textContent);
+
                 // 使用 CSS Transform 而不是改变多个属性
                 currentElement.classList.add("current");
 
                 const spans = currentElement.querySelectorAll("span[data-char-index]");
+                console.log(`找到的字符数量:`, spans.length);
+
                 if (spans.length > 0 && currentCharIndex >= 0) {
                     // 批量更新字符高亮，减少重绘
+                    console.log(`开始字符高亮，当前字符索引: ${currentCharIndex}`);
                     spans.forEach((span, charIndex) => {
                         if (charIndex <= currentCharIndex) {
                             span.classList.add("char-highlighted");
                         }
                     });
+                    console.log(`字符高亮完成，高亮了 ${currentCharIndex + 1} 个字符`);
+                } else {
+                    console.log(`没有字符数据或字符索引无效: spans.length=${spans.length}, currentCharIndex=${currentCharIndex}`);
                 }
 
                 // 滚动到当前行
