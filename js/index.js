@@ -488,7 +488,9 @@ const savedCurrentPlaylist = (() => {
 
 // API配置 - 修复API地址和请求方式
 const API = {
-    baseUrl: "/proxy",
+    // baseUrl: "/proxy",
+    // baseUrl: "https://music-api.gdstudio.xyz/api.php",
+    baseUrl: "http:/172.18.0.1:9308/proxy",
 
     generateSignature: () => {
         return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
