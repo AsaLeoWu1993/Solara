@@ -4002,6 +4002,8 @@ function parseLyrics(lyricText) {
     const lines = lyricText.split('\n');
     const lyrics = [];
 
+    console.log('开始解析歌词，原始文本:', lyricText);
+
     lines.forEach(line => {
         const match = line.match(/\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)/);
         if (match) {
@@ -4045,6 +4047,10 @@ function parseLyrics(lyricText) {
     }
 
     state.lyricsData = lyrics.sort((a, b) => a.time - b.time);
+
+    console.log('解析完成的歌词数据:', state.lyricsData);
+    console.log('第一行歌词的字符数据:', state.lyricsData[0]?.chars);
+
     displayLyrics();
 }
 
@@ -4069,15 +4075,24 @@ function clearLyricsContent() {
 
 // 修复：显示歌词 - 支持逐字高亮
 function displayLyrics() {
-    const lyricsHtml = state.lyricsData.map((lyric, index) => {
-        // 将每个字符包装成单独的span元素
-        const charsHtml = lyric.chars.map((char, charIndex) =>
-            `<span data-char-index="${charIndex}" data-char-time="${char.charTime.toFixed(3)}">${char.char}</span>`
-        ).join('');
+    console.log('开始显示歌词，数据行数:', state.lyricsData.length);
 
-        return `<div data-time="${lyric.time}" data-index="${index}" class="lyric-line">${charsHtml}</div>`;
+    const lyricsHtml = state.lyricsData.map((lyric, index) => {
+        // 检查是否有字符数据
+        if (lyric.chars && lyric.chars.length > 0) {
+            // 将每个字符包装成单独的span元素
+            const charsHtml = lyric.chars.map((char, charIndex) =>
+                `<span data-char-index="${charIndex}" data-char-time="${char.charTime.toFixed(3)}">${char.char}</span>`
+            ).join('');
+
+            return `<div data-time="${lyric.time}" data-index="${index}" class="lyric-line">${charsHtml}</div>`;
+        } else {
+            // 兼容旧格式，如果没有字符数据
+            return `<div data-time="${lyric.time}" data-index="${index}" class="lyric-line">${lyric.text}</div>`;
+        }
     }).join("");
 
+    console.log('生成的歌词HTML:', lyricsHtml.substring(0, 200) + '...');
     setLyricsContentHtml(lyricsHtml);
     if (dom.lyrics) {
         dom.lyrics.dataset.placeholder = "default";
@@ -4094,6 +4109,11 @@ function syncLyrics() {
     const currentTime = dom.audioPlayer.currentTime;
     let currentLineIndex = -1;
     let currentCharIndex = -1;
+
+    // 调试信息
+    if (Math.floor(currentTime) % 5 === 0) { // 每5秒输出一次调试信息
+        console.log(`歌词同步 - 当前时间: ${currentTime.toFixed(2)}s, 当前行: ${currentLineIndex}, 当前字符: ${currentCharIndex}`);
+    }
 
     // 找到当前应该高亮的行和字符
     for (let i = 0; i < state.lyricsData.length; i++) {
@@ -4126,13 +4146,13 @@ function syncLyrics() {
         const lyricTargets = [];
         if (dom.lyricsContent) {
             lyricTargets.push({
-                elements: dom.lyricsContent.querySelectorAll("div.lyric-line"),
+                elements: dom.lyricsContent.querySelectorAll("div.lyric-line, div[data-index]"),
                 container: dom.lyricsScroll || dom.lyrics,
             });
         }
         if (dom.mobileInlineLyricsContent) {
             lyricTargets.push({
-                elements: dom.mobileInlineLyricsContent.querySelectorAll("div.lyric-line"),
+                elements: dom.mobileInlineLyricsContent.querySelectorAll("div.lyric-line, div[data-index]"),
                 container: dom.mobileInlineLyricsScroll || dom.mobileInlineLyrics,
                 inline: true,
             });
@@ -4146,14 +4166,16 @@ function syncLyrics() {
                     // 当前行高亮
                     element.classList.add("current");
 
-                    // 逐字高亮
-                    spans.forEach((span, charIndex) => {
-                        if (charIndex <= currentCharIndex) {
-                            span.classList.add("char-highlighted");
-                        } else {
-                            span.classList.remove("char-highlighted");
-                        }
-                    });
+                    // 逐字高亮 - 如果有字符数据的话
+                    if (spans.length > 0 && currentCharIndex >= 0) {
+                        spans.forEach((span, charIndex) => {
+                            if (charIndex <= currentCharIndex) {
+                                span.classList.add("char-highlighted");
+                            } else {
+                                span.classList.remove("char-highlighted");
+                            }
+                        });
+                    }
 
                     const shouldScroll = !state.userScrolledLyrics && (!inline || state.isMobileInlineLyricsOpen);
                     if (shouldScroll) {
