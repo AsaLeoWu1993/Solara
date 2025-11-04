@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const fetch = require('node-fetch').default || require('node-fetch');
+const fetch = require('node-fetch');
 
 const app = express();
 const PORT = 8080;
@@ -182,11 +182,22 @@ app.options('*', (req, res) => {
 
 // 健康检查
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+    try {
+        res.status(200).json({
+            status: 'ok',
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime(),
+            port: PORT
+        });
+    } catch (error) {
+        console.error('Health check error:', error);
+        res.status(500).json({ status: 'error', message: 'Health check failed' });
+    }
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`Solara API Proxy running on port ${PORT}`);
     console.log(`Health check: http://localhost:${PORT}/health`);
     console.log(`Proxy endpoint: http://localhost:${PORT}/`);
+    console.log('Server started successfully!');
 });
