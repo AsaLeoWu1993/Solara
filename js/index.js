@@ -3971,8 +3971,6 @@ async function exploreOnlineMusic() {
 async function loadLyrics(song) {
     try {
         const lyricUrl = API.getLyric(song);
-        debugLog(`获取歌词URL: ${lyricUrl}`);
-
         const lyricData = await API.fetchJson(lyricUrl);
 
         if (lyricData && lyricData.lyric) {
@@ -4001,8 +3999,6 @@ async function loadLyrics(song) {
 function parseLyrics(lyricText) {
     const lines = lyricText.split('\n');
     const lyrics = [];
-
-    console.log('开始解析歌词，原始文本:', lyricText);
 
     lines.forEach(line => {
         const match = line.match(/\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)/);
@@ -4047,10 +4043,6 @@ function parseLyrics(lyricText) {
     }
 
     state.lyricsData = lyrics.sort((a, b) => a.time - b.time);
-
-    console.log('解析完成的歌词数据:', state.lyricsData);
-    console.log('第一行歌词的字符数据:', state.lyricsData[0]?.chars);
-
     displayLyrics();
 }
 
@@ -4075,8 +4067,6 @@ function clearLyricsContent() {
 
 // 修复：显示歌词 - 支持逐字高亮
 function displayLyrics() {
-    console.log('开始显示歌词，数据行数:', state.lyricsData.length);
-
     const lyricsHtml = state.lyricsData.map((lyric, index) => {
         // 检查是否有字符数据
         if (lyric.chars && lyric.chars.length > 0) {
@@ -4092,7 +4082,6 @@ function displayLyrics() {
         }
     }).join("");
 
-    console.log('生成的歌词HTML:', lyricsHtml.substring(0, 200) + '...');
     setLyricsContentHtml(lyricsHtml);
     if (dom.lyrics) {
         dom.lyrics.dataset.placeholder = "default";
@@ -4102,18 +4091,37 @@ function displayLyrics() {
     }
 }
 
-// 修复：同步歌词 - 支持逐字高亮
+// 性能优化：使用 requestAnimationFrame 节流
+let syncLyricsFrameId = null;
+let lastSyncTime = 0;
+
+// 修复：同步歌词 - 支持逐字高亮（优化版）
 function syncLyrics() {
     if (state.lyricsData.length === 0) return;
 
     const currentTime = dom.audioPlayer.currentTime;
+
+    // 节流：限制同步频率
+    if (currentTime - lastSyncTime < 0.05) { // 50ms 内只同步一次
+        return;
+    }
+    lastSyncTime = currentTime;
+
+    // 取消之前的动画帧请求
+    if (syncLyricsFrameId) {
+        cancelAnimationFrame(syncLyricsFrameId);
+    }
+
+    // 使用 requestAnimationFrame 优化性能
+    syncLyricsFrameId = requestAnimationFrame(() => {
+        performLyricsSync(currentTime);
+    });
+}
+
+// 实际执行歌词同步的函数
+function performLyricsSync(currentTime) {
     let currentLineIndex = -1;
     let currentCharIndex = -1;
-
-    // 调试信息
-    if (Math.floor(currentTime) % 5 === 0) { // 每5秒输出一次调试信息
-        console.log(`歌词同步 - 当前时间: ${currentTime.toFixed(2)}s, 当前行: ${currentLineIndex}, 当前字符: ${currentCharIndex}`);
-    }
 
     // 找到当前应该高亮的行和字符
     for (let i = 0; i < state.lyricsData.length; i++) {
@@ -4158,37 +4166,40 @@ function syncLyrics() {
             });
         }
 
+        // 性能优化：批量DOM操作
         lyricTargets.forEach(({ elements, container, inline }) => {
-            elements.forEach((element, index) => {
+            // 先清除所有行的高亮
+            elements.forEach((element) => {
+                element.classList.remove("current");
                 const spans = element.querySelectorAll("span[data-char-index]");
+                spans.forEach(span => span.classList.remove("char-highlighted"));
+            });
 
-                if (index === currentLineIndex) {
-                    // 当前行高亮
-                    element.classList.add("current");
+            // 只高亮当前行
+            const currentElement = elements[currentLineIndex];
+            if (currentElement) {
+                // 使用 CSS Transform 而不是改变多个属性
+                currentElement.classList.add("current");
 
-                    // 逐字高亮 - 如果有字符数据的话
-                    if (spans.length > 0 && currentCharIndex >= 0) {
-                        spans.forEach((span, charIndex) => {
-                            if (charIndex <= currentCharIndex) {
-                                span.classList.add("char-highlighted");
-                            } else {
-                                span.classList.remove("char-highlighted");
-                            }
-                        });
-                    }
-
-                    const shouldScroll = !state.userScrolledLyrics && (!inline || state.isMobileInlineLyricsOpen);
-                    if (shouldScroll) {
-                        scrollToCurrentLyric(element, container);
-                    }
-                } else {
-                    // 非当前行清除所有高亮
-                    element.classList.remove("current");
-                    spans.forEach(span => {
-                        span.classList.remove("char-highlighted");
+                const spans = currentElement.querySelectorAll("span[data-char-index]");
+                if (spans.length > 0 && currentCharIndex >= 0) {
+                    // 批量更新字符高亮，减少重绘
+                    spans.forEach((span, charIndex) => {
+                        if (charIndex <= currentCharIndex) {
+                            span.classList.add("char-highlighted");
+                        }
                     });
                 }
-            });
+
+                // 滚动到当前行
+                const shouldScroll = !state.userScrolledLyrics && (!inline || state.isMobileInlineLyricsOpen);
+                if (shouldScroll) {
+                    // 使用 requestAnimationFrame 优化滚动
+                    requestAnimationFrame(() => {
+                        scrollToCurrentLyric(currentElement, container);
+                    });
+                }
+            }
         });
     }
 }
@@ -4223,8 +4234,6 @@ function scrollToCurrentLyric(element, containerOverride) {
             container.scrollTop = finalScrollTop;
         }
     }
-
-    debugLog(`歌词滚动: 元素在容器内偏移=${elementOffsetTop}, 容器高度=${containerHeight}, 目标滚动=${finalScrollTop}`);
 }
 
 // 修复：下载歌曲

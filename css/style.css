@@ -1107,20 +1107,22 @@ html.mobile-view .playlist-header {
     box-shadow: 0 4px 15px var(--lyrics-highlight-shadow);
 }
 
-/* 逐字高亮样式 */
+/* 逐字高亮样式 - 性能优化版 */
 .lyrics .current span {
-    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: opacity 0.1s ease-out, transform 0.1s ease-out;
     opacity: 0.4;
-    transform: scale(0.95);
+    transform: scale(0.98);
+    will-change: opacity, transform; /* GPU加速 */
 }
 
 .lyrics .current span.char-highlighted {
     opacity: 1;
-    transform: scale(1.1);
+    transform: scale(1.05);
     color: var(--primary-color);
     font-weight: 700;
     text-shadow: 0 2px 8px var(--lyrics-highlight-shadow);
     position: relative;
+    will-change: opacity, transform, color; /* GPU加速 */
 }
 
 .lyrics .current span.char-highlighted::after {
@@ -1134,12 +1136,13 @@ html.mobile-view .playlist-header {
     border-radius: 3px;
     z-index: -1;
     transform: translateY(-50%);
-    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.1s ease-out;
+    will-change: transform; /* GPU加速 */
 }
 
+/* 简化悬停效果，减少性能开销 */
 .lyrics .current span.char-highlighted:hover {
-    transform: scale(1.2);
-    text-shadow: 0 3px 12px var(--lyrics-highlight-shadow);
+    transform: scale(1.08);
 }
 
 /* 控制区域 */

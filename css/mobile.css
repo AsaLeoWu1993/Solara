@@ -310,20 +310,22 @@ body.mobile-view .mobile-inline-lyrics__content .current {
     box-shadow: 0 12px 32px var(--lyrics-highlight-shadow, rgba(243, 162, 91, 0.32));
 }
 
-/* 移动端逐字高亮样式 */
+/* 移动端逐字高亮样式 - 性能优化版 */
 body.mobile-view .mobile-inline-lyrics__content .current span {
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: opacity 0.15s ease-out, transform 0.15s ease-out;
     opacity: 0.3;
     transform: scale(0.98);
+    will-change: opacity, transform; /* GPU加速 */
 }
 
 body.mobile-view .mobile-inline-lyrics__content .current span.char-highlighted {
     opacity: 1;
-    transform: scale(1.05);
+    transform: scale(1.03);
     color: var(--primary-color, #f3a25b);
     font-weight: 700;
     text-shadow: 0 2px 10px var(--lyrics-highlight-shadow, rgba(243, 162, 91, 0.32));
     position: relative;
+    will-change: opacity, transform, color; /* GPU加速 */
 }
 
 body.mobile-view .mobile-inline-lyrics__content .current span.char-highlighted::after {
@@ -337,11 +339,13 @@ body.mobile-view .mobile-inline-lyrics__content .current span.char-highlighted::
     border-radius: 4px;
     z-index: -1;
     transform: translateY(-50%);
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.15s ease-out;
+    will-change: transform; /* GPU加速 */
 }
 
+/* 简化触摸反馈，减少性能开销 */
 body.mobile-view .mobile-inline-lyrics__content .current span.char-highlighted:active {
-    transform: scale(1.1);
+    transform: scale(1.05);
 }
 
 body.mobile-view .mobile-inline-lyrics__scroll::-webkit-scrollbar {
