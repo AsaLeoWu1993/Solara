@@ -6,6 +6,14 @@ const app = express();
 const PORT = 8080;
 const API_BASE_URL = "https://music-api.gdstudio.xyz/api.php";
 
+// 重试配置
+const RETRY_CONFIG = {
+    maxRetries: parseInt(process.env.API_MAX_RETRIES) || 3,
+    retryDelay: parseInt(process.env.API_RETRY_DELAY) || 1000,
+    audioMaxRetries: parseInt(process.env.AUDIO_MAX_RETRIES) || 2,
+    audioRetryDelay: parseInt(process.env.AUDIO_RETRY_DELAY) || 500
+};
+
 // 中间件
 app.use(cors());
 app.use(express.json());
@@ -32,6 +40,51 @@ function normalizeKuwoUrl(rawUrl) {
     } catch {
         return null;
     }
+}
+
+// 带重试机制的fetch函数
+async function fetchWithRetry(url, options = {}, maxRetries = 3, retryDelay = 1000) {
+    let lastError;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            console.log(`API请求尝试 ${attempt}/${maxRetries}: ${url}`);
+
+            const response = await fetch(url, options);
+
+            // 检查是否是服务器错误状态码（5xx）
+            if (response.status >= 500) {
+                const errorText = await response.text();
+                console.warn(`API返回错误 ${response.status} (尝试 ${attempt}/${maxRetries}): ${errorText}`);
+
+                if (attempt < maxRetries) {
+                    // 指数退避策略
+                    const delay = retryDelay * Math.pow(2, attempt - 1);
+                    console.log(`等待 ${delay}ms 后重试...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    continue;
+                }
+            }
+
+            // 成功或客户端错误（4xx）直接返回
+            console.log(`API请求成功，状态码: ${response.status}`);
+            return response;
+
+        } catch (error) {
+            lastError = error;
+            console.error(`API请求失败 (尝试 ${attempt}/${maxRetries}):`, error.message);
+
+            if (attempt < maxRetries) {
+                // 网络错误也使用指数退避
+                const delay = retryDelay * Math.pow(2, attempt - 1);
+                console.log(`网络错误，等待 ${delay}ms 后重试...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+    }
+
+    // 所有重试都失败了
+    throw lastError;
 }
 
 // 创建CORS头部
@@ -67,13 +120,13 @@ async function proxyKuwoAudio(targetUrl, req, res) {
     }
 
     try {
-        const response = await fetch(url.toString(), {
+        const response = await fetchWithRetry(url.toString(), {
             headers: {
                 'User-Agent': req.get('User-Agent') || 'Mozilla/5.0',
                 'Accept': req.get('Accept') || '*/*',
                 'Range': req.get('Range') || ''
             }
-        });
+        }, RETRY_CONFIG.audioMaxRetries, RETRY_CONFIG.audioRetryDelay);
 
         if (!response.ok) {
             return res.status(response.status).send('Failed to fetch audio');
@@ -127,12 +180,12 @@ async function proxyApiRequest(req, res) {
     }
 
     try {
-        const response = await fetch(apiUrl.toString(), {
+        const response = await fetchWithRetry(apiUrl.toString(), {
             headers: {
                 'User-Agent': req.get('User-Agent') || 'Mozilla/5.0',
                 'Accept': acceptHeader
             }
-        });
+        }, RETRY_CONFIG.maxRetries, RETRY_CONFIG.retryDelay);
 
         const headers = createCorsHeaders(Object.fromEntries(response.headers.entries()));
 
