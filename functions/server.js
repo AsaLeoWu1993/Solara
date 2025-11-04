@@ -158,6 +158,21 @@ async function proxyApiRequest(req, res) {
     }
 }
 
+// 健康检查路由（必须在通配符路由之前）
+app.get('/health', (req, res) => {
+    try {
+        res.status(200).json({
+            status: 'ok',
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime(),
+            port: PORT
+        });
+    } catch (error) {
+        console.error('Health check error:', error);
+        res.status(500).json({ status: 'error', message: 'Health check failed' });
+    }
+});
+
 // 处理所有GET请求
 app.get('*', async (req, res) => {
     const target = req.query.target;
@@ -180,24 +195,25 @@ app.options('*', (req, res) => {
     res.status(204).send();
 });
 
-// 健康检查
-app.get('/health', (req, res) => {
-    try {
-        res.status(200).json({
-            status: 'ok',
-            timestamp: new Date().toISOString(),
-            uptime: process.uptime(),
-            port: PORT
-        });
-    } catch (error) {
-        console.error('Health check error:', error);
-        res.status(500).json({ status: 'error', message: 'Health check failed' });
-    }
+// 添加错误处理
+process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error);
+    process.exit(1);
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    process.exit(1);
+});
+
+const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Solara API Proxy running on port ${PORT}`);
     console.log(`Health check: http://localhost:${PORT}/health`);
     console.log(`Proxy endpoint: http://localhost:${PORT}/`);
     console.log('Server started successfully!');
+});
+
+server.on('error', (error) => {
+    console.error('Server error:', error);
+    process.exit(1);
 });

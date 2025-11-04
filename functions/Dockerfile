@@ -18,8 +18,8 @@ COPY server.js ./
 EXPOSE 8080
 
 # 设置健康检查（检查 /health 端点）
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:8080/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
 
 # 启动API服务
 CMD ["node", "server.js"]
