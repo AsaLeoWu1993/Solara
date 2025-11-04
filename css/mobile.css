@@ -310,6 +310,40 @@ body.mobile-view .mobile-inline-lyrics__content .current {
     box-shadow: 0 12px 32px var(--lyrics-highlight-shadow, rgba(243, 162, 91, 0.32));
 }
 
+/* 移动端逐字高亮样式 */
+body.mobile-view .mobile-inline-lyrics__content .current span {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0.3;
+    transform: scale(0.98);
+}
+
+body.mobile-view .mobile-inline-lyrics__content .current span.char-highlighted {
+    opacity: 1;
+    transform: scale(1.05);
+    color: var(--primary-color, #f3a25b);
+    font-weight: 700;
+    text-shadow: 0 2px 10px var(--lyrics-highlight-shadow, rgba(243, 162, 91, 0.32));
+    position: relative;
+}
+
+body.mobile-view .mobile-inline-lyrics__content .current span.char-highlighted::after {
+    content: '';
+    position: absolute;
+    left: -1px;
+    right: -1px;
+    top: 50%;
+    bottom: 50%;
+    background: var(--lyrics-highlight-bg, rgba(243, 162, 91, 0.24));
+    border-radius: 4px;
+    z-index: -1;
+    transform: translateY(-50%);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.mobile-view .mobile-inline-lyrics__content .current span.char-highlighted:active {
+    transform: scale(1.1);
+}
+
 body.mobile-view .mobile-inline-lyrics__scroll::-webkit-scrollbar {
     width: 4px;
 }

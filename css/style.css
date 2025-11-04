@@ -1099,12 +1099,47 @@ html.mobile-view .playlist-header {
 .lyrics.empty[data-placeholder="message"] .lyrics-scroll::before {
     content: none;
 }
-.lyrics .current { 
-    color: var(--lyrics-highlight-text); 
-    font-weight: 700; 
-    background-color: var(--lyrics-highlight-bg); 
-    transform: scale(1.05); 
-    box-shadow: 0 4px 15px var(--lyrics-highlight-shadow); 
+.lyrics .current {
+    color: var(--lyrics-highlight-text);
+    font-weight: 700;
+    background-color: var(--lyrics-highlight-bg);
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px var(--lyrics-highlight-shadow);
+}
+
+/* 逐字高亮样式 */
+.lyrics .current span {
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0.4;
+    transform: scale(0.95);
+}
+
+.lyrics .current span.char-highlighted {
+    opacity: 1;
+    transform: scale(1.1);
+    color: var(--primary-color);
+    font-weight: 700;
+    text-shadow: 0 2px 8px var(--lyrics-highlight-shadow);
+    position: relative;
+}
+
+.lyrics .current span.char-highlighted::after {
+    content: '';
+    position: absolute;
+    left: -2px;
+    right: -2px;
+    top: 50%;
+    bottom: 50%;
+    background: var(--lyrics-highlight-bg);
+    border-radius: 3px;
+    z-index: -1;
+    transform: translateY(-50%);
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.lyrics .current span.char-highlighted:hover {
+    transform: scale(1.2);
+    text-shadow: 0 3px 12px var(--lyrics-highlight-shadow);
 }
 
 /* 控制区域 */

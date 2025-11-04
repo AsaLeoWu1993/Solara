@@ -625,6 +625,7 @@ const state = {
     currentAudioUrl: null,
     lyricsData: [],
     currentLyricLine: -1,
+    currentCharIndex: -1,
     currentPlaylist: savedCurrentPlaylist, // 'online', 'search', or 'playlist'
     searchPage: 1,
     searchKeyword: "", // 确保这里有初始值
@@ -3984,6 +3985,7 @@ async function loadLyrics(song) {
             dom.lyrics.dataset.placeholder = "message";
             state.lyricsData = [];
             state.currentLyricLine = -1;
+            state.currentCharIndex = -1;
         }
     } catch (error) {
         console.error("加载歌词失败:", error);
@@ -3995,7 +3997,7 @@ async function loadLyrics(song) {
     }
 }
 
-// 修复：解析歌词
+// 修复：解析歌词 - 支持逐字高亮
 function parseLyrics(lyricText) {
     const lines = lyricText.split('\n');
     const lyrics = [];
@@ -4010,10 +4012,37 @@ function parseLyrics(lyricText) {
             const text = match[4].trim();
 
             if (text) {
-                lyrics.push({ time, text });
+                // 为逐字高亮添加字符级别的信息
+                const chars = text.split('').map((char, index) => ({
+                    char: char,
+                    index: index,
+                    // 估算每个字符的时间（简单平均分配）
+                    charTime: time + (index * 0.1) // 每个字符间隔100ms
+                }));
+
+                lyrics.push({
+                    time,
+                    text,
+                    chars: chars,
+                    duration: chars.length * 0.1 // 估算整行持续时间
+                });
             }
         }
     });
+
+    // 计算下一行的时间来更精确地确定字符时间
+    for (let i = 0; i < lyrics.length - 1; i++) {
+        const currentLine = lyrics[i];
+        const nextLine = lyrics[i + 1];
+        const lineDuration = Math.min(nextLine.time - currentLine.time, currentLine.duration);
+
+        if (lineDuration > 0 && currentLine.chars.length > 0) {
+            const charDuration = lineDuration / currentLine.chars.length;
+            currentLine.chars.forEach((char, index) => {
+                char.charTime = currentLine.time + (index * charDuration);
+            });
+        }
+    }
 
     state.lyricsData = lyrics.sort((a, b) => a.time - b.time);
     displayLyrics();
@@ -4032,16 +4061,23 @@ function clearLyricsContent() {
     setLyricsContentHtml("");
     state.lyricsData = [];
     state.currentLyricLine = -1;
+    state.currentCharIndex = -1;
     if (isMobileView) {
         closeMobileInlineLyrics({ force: true });
     }
 }
 
-// 修复：显示歌词
+// 修复：显示歌词 - 支持逐字高亮
 function displayLyrics() {
-    const lyricsHtml = state.lyricsData.map((lyric, index) =>
-        `<div data-time="${lyric.time}" data-index="${index}">${lyric.text}</div>`
-    ).join("");
+    const lyricsHtml = state.lyricsData.map((lyric, index) => {
+        // 将每个字符包装成单独的span元素
+        const charsHtml = lyric.chars.map((char, charIndex) =>
+            `<span data-char-index="${charIndex}" data-char-time="${char.charTime.toFixed(3)}">${char.char}</span>`
+        ).join('');
+
+        return `<div data-time="${lyric.time}" data-index="${index}" class="lyric-line">${charsHtml}</div>`;
+    }).join("");
+
     setLyricsContentHtml(lyricsHtml);
     if (dom.lyrics) {
         dom.lyrics.dataset.placeholder = "default";
@@ -4051,34 +4087,52 @@ function displayLyrics() {
     }
 }
 
-// 修复：同步歌词
+// 修复：同步歌词 - 支持逐字高亮
 function syncLyrics() {
     if (state.lyricsData.length === 0) return;
 
     const currentTime = dom.audioPlayer.currentTime;
-    let currentIndex = -1;
+    let currentLineIndex = -1;
+    let currentCharIndex = -1;
 
+    // 找到当前应该高亮的行和字符
     for (let i = 0; i < state.lyricsData.length; i++) {
-        if (currentTime >= state.lyricsData[i].time) {
-            currentIndex = i;
+        const lyricLine = state.lyricsData[i];
+
+        if (currentTime >= lyricLine.time) {
+            currentLineIndex = i;
+
+            // 在当前行中找到应该高亮的字符
+            for (let j = 0; j < lyricLine.chars.length; j++) {
+                if (currentTime >= lyricLine.chars[j].charTime) {
+                    currentCharIndex = j;
+                } else {
+                    break;
+                }
+            }
         } else {
             break;
         }
     }
 
-    if (currentIndex !== state.currentLyricLine) {
-        state.currentLyricLine = currentIndex;
+    // 检查是否需要更新
+    const needsUpdate = currentLineIndex !== state.currentLyricLine ||
+                       (currentLineIndex >= 0 && currentCharIndex !== state.currentCharIndex);
+
+    if (needsUpdate) {
+        state.currentLyricLine = currentLineIndex;
+        state.currentCharIndex = currentCharIndex;
 
         const lyricTargets = [];
         if (dom.lyricsContent) {
             lyricTargets.push({
-                elements: dom.lyricsContent.querySelectorAll("div[data-index]"),
+                elements: dom.lyricsContent.querySelectorAll("div.lyric-line"),
                 container: dom.lyricsScroll || dom.lyrics,
             });
         }
         if (dom.mobileInlineLyricsContent) {
             lyricTargets.push({
-                elements: dom.mobileInlineLyricsContent.querySelectorAll("div[data-index]"),
+                elements: dom.mobileInlineLyricsContent.querySelectorAll("div.lyric-line"),
                 container: dom.mobileInlineLyricsScroll || dom.mobileInlineLyrics,
                 inline: true,
             });
@@ -4086,14 +4140,31 @@ function syncLyrics() {
 
         lyricTargets.forEach(({ elements, container, inline }) => {
             elements.forEach((element, index) => {
-                if (index === currentIndex) {
+                const spans = element.querySelectorAll("span[data-char-index]");
+
+                if (index === currentLineIndex) {
+                    // 当前行高亮
                     element.classList.add("current");
+
+                    // 逐字高亮
+                    spans.forEach((span, charIndex) => {
+                        if (charIndex <= currentCharIndex) {
+                            span.classList.add("char-highlighted");
+                        } else {
+                            span.classList.remove("char-highlighted");
+                        }
+                    });
+
                     const shouldScroll = !state.userScrolledLyrics && (!inline || state.isMobileInlineLyricsOpen);
                     if (shouldScroll) {
                         scrollToCurrentLyric(element, container);
                     }
                 } else {
+                    // 非当前行清除所有高亮
                     element.classList.remove("current");
+                    spans.forEach(span => {
+                        span.classList.remove("char-highlighted");
+                    });
                 }
             });
         });
