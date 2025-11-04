@@ -8,11 +8,15 @@ LABEL description="现代化网页音乐播放器，整合多种音乐聚合接�
 # 设置工作目录
 WORKDIR /usr/share/nginx/html
 
-# 安装 curl（用于健康检查）
-RUN apk add --no-cache curl
+# 安装 curl 和 sed（用于环境变量替换）
+RUN apk add --no-cache curl sed
+
+# 复制启动脚本并设置执行权限
+COPY entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # 复制静态文件到nginx默认目录
-COPY index.html ./ 
+COPY index.html ./
 COPY css/ ./css/
 COPY js/ ./js/
 COPY favicon.png ./
@@ -28,9 +32,12 @@ RUN chown -R nginx:nginx /usr/share/nginx/html && \
 # 暴露端口
 EXPOSE 80
 
+# 设置环境变量默认值
+ENV SOLARA_API_BASE_URL="http://10.10.10.4:9308/proxy"
+
 # 设置健康检查（改用 curl）
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost/ || exit 1
 
-# 启动nginx
-CMD ["nginx", "-g", "daemon off;"]
+# 使用自定义启动脚本
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

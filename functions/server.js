@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const fetch = require('node-fetch');
+const fetch = require('node-fetch').default || require('node-fetch');
 
 const app = express();
 const PORT = 8080;
