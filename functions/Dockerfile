@@ -14,12 +14,6 @@ RUN npm install && npm cache clean --force
 # 复制源代码
 COPY server.js ./
 
-# 设置重试配置环境变量默认值
-ENV API_MAX_RETRIES=3
-ENV API_RETRY_DELAY=1000
-ENV AUDIO_MAX_RETRIES=2
-ENV AUDIO_RETRY_DELAY=500
-
 # 暴露端口
 EXPOSE 8080
 
