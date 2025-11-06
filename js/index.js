@@ -612,6 +612,24 @@ const API = {
     getPicUrl: (song) => {
         const signature = API.generateSignature();
         return `${API.baseUrl}?types=pic&id=${song.pic_id}&source=${song.source || "netease"}&size=300&s=${signature}`;
+    },
+
+    // 新增：测试歌词 API
+    testLyricApi: async (song) => {
+        if (!song) {
+            console.error("[歌词测试] 歌曲信息缺失");
+            return;
+        }
+        const url = API.getLyric(song);
+        console.log(`[歌词测试] 测试歌曲: ${song.name}`);
+        console.log(`[歌词测试] 请求地址: ${url}`);
+
+        try {
+            const response = await API.fetchJson(url);
+            console.log(`[歌词测试] 响应结果:`, response);
+        } catch (error) {
+            console.error(`[歌词测试] 请求失败:`, error);
+        }
     }
 };
 
@@ -3966,17 +3984,52 @@ async function exploreOnlineMusic() {
     }
 }
 
-// 修复：加载歌词
+// 修复：加载歌词 - 增强版
 async function loadLyrics(song) {
     try {
+        // 检查必要参数
+        if (!song) {
+            throw new Error('歌曲信息缺失');
+        }
+
+        const songId = song.lyric_id || song.id;
+        if (!songId) {
+            console.warn('歌曲缺少 lyric_id 或 id 字段:', song);
+            setLyricsContentHtml("<div>该歌曲暂无歌词</div>");
+            dom.lyrics.classList.add("empty");
+            dom.lyrics.dataset.placeholder = "message";
+            state.lyricsData = [];
+            state.currentLyricLine = -1;
+            return;
+        }
+
         const lyricUrl = API.getLyric(song);
+        console.log(`[歌词] 正在获取歌词: ${song.name} (ID: ${songId})`);
+        console.log(`[歌词] 请求URL: ${lyricUrl}`);
+
         const lyricData = await API.fetchJson(lyricUrl);
+        console.log(`[歌词] 原始响应:`, lyricData);
 
         if (lyricData && lyricData.lyric) {
-            parseLyrics(lyricData.lyric);
-            dom.lyrics.classList.remove("empty");
-            dom.lyrics.dataset.placeholder = "default";
+            // 解析歌词
+            const lyricText = lyricData.lyric;
+            console.log(`[歌词] 歌词文本长度: ${lyricText.length}`);
+
+            if (lyricText.trim().length === 0 || lyricText === "[00:00:00]暂无歌词") {
+                console.log(`[歌词] 歌词内容为空或无效`);
+                setLyricsContentHtml("<div>暂无歌词</div>");
+                dom.lyrics.classList.add("empty");
+                dom.lyrics.dataset.placeholder = "message";
+                state.lyricsData = [];
+                state.currentLyricLine = -1;
+            } else {
+                parseLyrics(lyricText);
+                dom.lyrics.classList.remove("empty");
+                dom.lyrics.dataset.placeholder = "default";
+                console.log(`[歌词] 歌词解析成功，共 ${state.lyricsData.length} 行`);
+            }
         } else {
+            console.log(`[歌词] API返回无歌词数据:`, lyricData);
             setLyricsContentHtml("<div>暂无歌词</div>");
             dom.lyrics.classList.add("empty");
             dom.lyrics.dataset.placeholder = "message";
@@ -3984,8 +4037,20 @@ async function loadLyrics(song) {
             state.currentLyricLine = -1;
         }
     } catch (error) {
-        console.error("加载歌词失败:", error);
-        setLyricsContentHtml("<div>歌词加载失败</div>");
+        console.error("[歌词] 加载歌词失败:", error);
+
+        // 区分不同类型的错误
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            console.error("[歌词] 网络请求失败，请检查网络连接");
+            setLyricsContentHtml("<div>网络错误，歌词加载失败</div>");
+        } else if (error.message.includes('status 404')) {
+            console.error("[歌词] 歌词资源不存在");
+            setLyricsContentHtml("<div>该歌曲暂无歌词</div>");
+        } else {
+            console.error("[歌词] 未知错误");
+            setLyricsContentHtml("<div>歌词加载失败</div>");
+        }
+
         dom.lyrics.classList.add("empty");
         dom.lyrics.dataset.placeholder = "message";
         state.lyricsData = [];
