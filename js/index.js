@@ -625,8 +625,7 @@ const state = {
     currentAudioUrl: null,
     lyricsData: [],
     currentLyricLine: -1,
-    currentCharIndex: -1,
-    currentPlaylist: savedCurrentPlaylist, // 'online', 'search', or 'playlist'
+        currentPlaylist: savedCurrentPlaylist, // 'online', 'search', or 'playlist'
     searchPage: 1,
     searchKeyword: "", // 确保这里有初始值
     searchSource: savedSearchSource,
@@ -3983,7 +3982,6 @@ async function loadLyrics(song) {
             dom.lyrics.dataset.placeholder = "message";
             state.lyricsData = [];
             state.currentLyricLine = -1;
-            state.currentCharIndex = -1;
         }
     } catch (error) {
         console.error("加载歌词失败:", error);
@@ -3995,13 +3993,10 @@ async function loadLyrics(song) {
     }
 }
 
-// 修复：解析歌词 - 支持逐字高亮
+// 解析歌词 - 简化版本
 function parseLyrics(lyricText) {
     const lines = lyricText.split('\n');
     const lyrics = [];
-
-    console.log('开始解析歌词，原始文本行数:', lines.length);
-    console.log('原始歌词文本示例:', lines[0] || '无内容');
 
     lines.forEach((line, index) => {
         const match = line.match(/\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)/);
@@ -4013,45 +4008,15 @@ function parseLyrics(lyricText) {
             const text = match[4].trim();
 
             if (text) {
-                // 为逐字高亮添加字符级别的信息
-                const chars = text.split('').map((char, index) => ({
-                    char: char,
-                    index: index,
-                    // 估算每个字符的时间（简单平均分配）
-                    charTime: time + (index * 0.1) // 每个字符间隔100ms
-                }));
-
                 lyrics.push({
                     time,
-                    text,
-                    chars: chars,
-                    duration: chars.length * 0.1 // 估算整行持续时间
+                    text
                 });
             }
         }
     });
 
-    // 计算下一行的时间来更精确地确定字符时间
-    for (let i = 0; i < lyrics.length - 1; i++) {
-        const currentLine = lyrics[i];
-        const nextLine = lyrics[i + 1];
-        const lineDuration = Math.min(nextLine.time - currentLine.time, currentLine.duration);
-
-        if (lineDuration > 0 && currentLine.chars.length > 0) {
-            const charDuration = lineDuration / currentLine.chars.length;
-            currentLine.chars.forEach((char, index) => {
-                char.charTime = currentLine.time + (index * charDuration);
-            });
-        }
-    }
-
     state.lyricsData = lyrics.sort((a, b) => a.time - b.time);
-
-    console.log('歌词解析完成，解析出的歌词行数:', lyrics.length);
-    if (lyrics.length > 0) {
-        console.log('第一行歌词时间:', lyrics[0].time, '文本:', lyrics[0].text);
-        console.log('第一行字符数量:', lyrics[0].chars?.length || 0);
-    }
 
     displayLyrics();
 }
@@ -4069,34 +4034,19 @@ function clearLyricsContent() {
     setLyricsContentHtml("");
     state.lyricsData = [];
     state.currentLyricLine = -1;
-    state.currentCharIndex = -1;
     if (isMobileView) {
         closeMobileInlineLyrics({ force: true });
     }
 }
 
-// 修复：显示歌词 - 支持逐字高亮
+// 显示歌词 - 简化版本
 function displayLyrics() {
-    console.log('开始显示歌词，当前歌词数据行数:', state.lyricsData.length);
 
     const lyricsHtml = state.lyricsData.map((lyric, index) => {
-        // 检查是否有字符数据
-        if (lyric.chars && lyric.chars.length > 0) {
-            // 将每个字符包装成单独的span元素
-            const charsHtml = lyric.chars.map((char, charIndex) =>
-                `<span data-char-index="${charIndex}" data-char-time="${char.charTime.toFixed(3)}">${char.char}</span>`
-            ).join('');
-
-            return `<div data-time="${lyric.time}" data-index="${index}" class="lyric-line">${charsHtml}</div>`;
-        } else {
-            // 兼容旧格式，如果没有字符数据
-            return `<div data-time="${lyric.time}" data-index="${index}" class="lyric-line">${lyric.text}</div>`;
-        }
+        return `<div data-time="${lyric.time}" data-index="${index}" class="lyric-line">${lyric.text}</div>`;
     }).join("");
 
-    console.log('生成的歌词HTML长度:', lyricsHtml.length);
-    console.log('HTML内容预览:', lyricsHtml.substring(0, 200) + '...');
-
+    
     setLyricsContentHtml(lyricsHtml);
     if (dom.lyrics) {
         dom.lyrics.dataset.placeholder = "default";
@@ -4110,17 +4060,13 @@ function displayLyrics() {
 let syncLyricsFrameId = null;
 let lastSyncTime = 0;
 
-// 修复：同步歌词 - 支持逐字高亮（调试版）
+// 同步歌词 - 简化版本
 function syncLyrics() {
     if (state.lyricsData.length === 0) return;
 
     const currentTime = dom.audioPlayer.currentTime;
 
-    // 临时调试：每次都输出
-    console.log(`歌词同步调用: 时间=${currentTime.toFixed(2)}s, 歌词数量=${state.lyricsData.length}`);
-
-    // 移除节流限制，确保调试输出
-    // 取消之前的动画帧请求
+        // 取消之前的动画帧请求
     if (syncLyricsFrameId) {
         cancelAnimationFrame(syncLyricsFrameId);
     }
@@ -4129,46 +4075,26 @@ function syncLyrics() {
     performLyricsSync(currentTime);
 }
 
-// 实际执行歌词同步的函数
+// 实际执行歌词同步的函数 - 简化版本
 function performLyricsSync(currentTime) {
     let currentLineIndex = -1;
-    let currentCharIndex = -1;
 
-    // 临时调试：检查歌词数据
-    if (state.lyricsData.length > 0) {
-        console.log(`歌词同步调试: 当前时间=${currentTime.toFixed(2)}s, 第一行歌词时间=${state.lyricsData[0].time}s`);
-    }
-
-    // 找到当前应该高亮的行和字符
+    // 找到当前应该高亮的行
     for (let i = 0; i < state.lyricsData.length; i++) {
         const lyricLine = state.lyricsData[i];
 
         if (currentTime >= lyricLine.time) {
             currentLineIndex = i;
-
-            // 在当前行中找到应该高亮的字符
-            for (let j = 0; j < lyricLine.chars.length; j++) {
-                if (currentTime >= lyricLine.chars[j].charTime) {
-                    currentCharIndex = j;
-                } else {
-                    break;
-                }
-            }
         } else {
             break;
         }
     }
 
     // 检查是否需要更新
-    const needsUpdate = currentLineIndex !== state.currentLyricLine ||
-                       (currentLineIndex >= 0 && currentCharIndex !== state.currentCharIndex);
+    const needsUpdate = currentLineIndex !== state.currentLyricLine;
 
-    // 临时调试：输出同步结果
-    console.log(`歌词同步结果: 当前行=${currentLineIndex}, 当前字符=${currentCharIndex}, 需要更新=${needsUpdate}`);
-
-    if (needsUpdate) {
+          if (needsUpdate) {
         state.currentLyricLine = currentLineIndex;
-        state.currentCharIndex = currentCharIndex;
 
         const lyricTargets = [];
         if (dom.lyricsContent) {
@@ -4190,35 +4116,12 @@ function performLyricsSync(currentTime) {
             // 先清除所有行的高亮
             elements.forEach((element) => {
                 element.classList.remove("current");
-                const spans = element.querySelectorAll("span[data-char-index]");
-                spans.forEach(span => span.classList.remove("char-highlighted"));
             });
 
             // 只高亮当前行
             const currentElement = elements[currentLineIndex];
             if (currentElement) {
-                // 临时调试：检查找到的元素
-                console.log(`找到当前行元素:`, currentElement);
-                console.log(`元素内容:`, currentElement.textContent);
-
-                // 使用 CSS Transform 而不是改变多个属性
                 currentElement.classList.add("current");
-
-                const spans = currentElement.querySelectorAll("span[data-char-index]");
-                console.log(`找到的字符数量:`, spans.length);
-
-                if (spans.length > 0 && currentCharIndex >= 0) {
-                    // 批量更新字符高亮，减少重绘
-                    console.log(`开始字符高亮，当前字符索引: ${currentCharIndex}`);
-                    spans.forEach((span, charIndex) => {
-                        if (charIndex <= currentCharIndex) {
-                            span.classList.add("char-highlighted");
-                        }
-                    });
-                    console.log(`字符高亮完成，高亮了 ${currentCharIndex + 1} 个字符`);
-                } else {
-                    console.log(`没有字符数据或字符索引无效: spans.length=${spans.length}, currentCharIndex=${currentCharIndex}`);
-                }
 
                 // 滚动到当前行
                 const shouldScroll = !state.userScrolledLyrics && (!inline || state.isMobileInlineLyricsOpen);

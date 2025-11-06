@@ -1107,7 +1107,6 @@ html.mobile-view .playlist-header {
     box-shadow: 0 4px 15px var(--lyrics-highlight-shadow);
 }
 
-/* 逐字高亮样式 - 性能优化版 */
 .lyrics .current span {
     transition: opacity 0.1s ease-out, transform 0.1s ease-out;
     opacity: 0.4;
@@ -1115,35 +1114,6 @@ html.mobile-view .playlist-header {
     will-change: opacity, transform; /* GPU加速 */
 }
 
-.lyrics .current span.char-highlighted {
-    opacity: 1;
-    transform: scale(1.05);
-    color: var(--primary-color);
-    font-weight: 700;
-    text-shadow: 0 2px 8px var(--lyrics-highlight-shadow);
-    position: relative;
-    will-change: opacity, transform, color; /* GPU加速 */
-}
-
-.lyrics .current span.char-highlighted::after {
-    content: '';
-    position: absolute;
-    left: -2px;
-    right: -2px;
-    top: 50%;
-    bottom: 50%;
-    background: var(--lyrics-highlight-bg);
-    border-radius: 3px;
-    z-index: -1;
-    transform: translateY(-50%);
-    transition: all 0.1s ease-out;
-    will-change: transform; /* GPU加速 */
-}
-
-/* 简化悬停效果，减少性能开销 */
-.lyrics .current span.char-highlighted:hover {
-    transform: scale(1.08);
-}
 
 /* 控制区域 */
 .controls {
