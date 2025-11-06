@@ -5,6 +5,8 @@ const fetch = require('node-fetch');
 const app = express();
 const PORT = 8080;
 const API_BASE_URL = "https://music-api.gdstudio.xyz/api.php";
+const MAX_RETRIES = 3;
+const RETRY_DELAY_BASE = 1000; // 1秒基础延迟
 
 // 中间件
 app.use(cors());
@@ -32,6 +34,53 @@ function normalizeKuwoUrl(rawUrl) {
     } catch {
         return null;
     }
+}
+
+// 带重试机制的fetch函数
+async function fetchWithRetry(url, options = {}) {
+    let lastError = null;
+
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        try {
+            // 添加超时控制
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Request timeout')), 15000);
+            });
+
+            const response = await Promise.race([
+                fetch(url, options),
+                timeoutPromise
+            ]);
+
+            // 5xx服务器错误才重试，4xx客户端错误不重试
+            if (response.status < 500) {
+                return response;
+            }
+
+            // 如果是最后一次尝试，直接返回
+            if (attempt === MAX_RETRIES - 1) {
+                return response;
+            }
+
+            console.warn(`API request failed with ${response.status}, retrying... (${attempt + 1}/${MAX_RETRIES})`);
+
+        } catch (error) {
+            lastError = error;
+
+            // 如果是最后一次尝试，抛出错误
+            if (attempt === MAX_RETRIES - 1) {
+                throw lastError;
+            }
+
+            console.warn(`API request failed, retrying... (${attempt + 1}/${MAX_RETRIES}):`, error.message);
+        }
+
+        // 指数退避延迟: 1s, 2s, 4s
+        const delay = RETRY_DELAY_BASE * Math.pow(2, attempt);
+        await new Promise(resolve => setTimeout(resolve, delay));
+    }
+
+    throw lastError || new Error('Max retries exceeded');
 }
 
 // 创建CORS头部
@@ -67,7 +116,7 @@ async function proxyKuwoAudio(targetUrl, req, res) {
     }
 
     try {
-        const response = await fetch(url.toString(), {
+        const response = await fetchWithRetry(url.toString(), {
             headers: {
                 'User-Agent': req.get('User-Agent') || 'Mozilla/5.0',
                 'Accept': req.get('Accept') || '*/*',
@@ -127,7 +176,7 @@ async function proxyApiRequest(req, res) {
     }
 
     try {
-        const response = await fetch(apiUrl.toString(), {
+        const response = await fetchWithRetry(apiUrl.toString(), {
             headers: {
                 'User-Agent': req.get('User-Agent') || 'Mozilla/5.0',
                 'Accept': acceptHeader
