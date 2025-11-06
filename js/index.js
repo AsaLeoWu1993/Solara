@@ -3655,7 +3655,7 @@ async function playSong(song, options = {}) {
         const quality = state.playbackQuality || '320';
         const audioUrl = API.getSongUrl(song, quality);
         debugLog(`获取音频URL: ${audioUrl}`);
-
+        
         const audioData = await API.fetchJson(audioUrl);
 
         if (!audioData || !audioData.url) {
