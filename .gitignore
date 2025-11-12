@@ -5,7 +5,7 @@ package-lock.json
 
 # Claude files
 CLAUDE.md
-.claude/settings.local.json
+.claude/*
 
 # IDE files
 .vscode/
