@@ -763,6 +763,9 @@ const state = {
     currentGradient: '',
     isMobileInlineLyricsOpen: false,
     selectedSearchResults: new Set(),
+    playbackRetryCount: 0,
+    maxPlaybackRetries: 2, // 最多重试2次，即最多跳过3首失败的歌曲
+    isRetryingPlayback: false,
 };
 
 let importSelectedMenuOutsideHandler = null;
@@ -1960,8 +1963,8 @@ async function togglePlayPause() {
         const playPromise = dom.audioPlayer.play();
         if (playPromise !== undefined) {
             playPromise.catch(error => {
-                console.error("播放失败:", error);
-                showNotification("播放失败，请检查网络连接", "error");
+                // 用户手动播放时只显示错误，不触发自动跳过
+                handlePlaybackError(error, false);
             });
         }
     } else {
@@ -2650,8 +2653,16 @@ function setupInteractions() {
     dom.playPauseBtn.addEventListener("click", togglePlayPause);
     dom.audioPlayer.addEventListener("timeupdate", handleTimeUpdate);
     dom.audioPlayer.addEventListener("loadedmetadata", handleLoadedMetadata);
-    dom.audioPlayer.addEventListener("play", updatePlayPauseButton);
+    dom.audioPlayer.addEventListener("play", () => {
+        updatePlayPauseButton();
+        // 音频播放成功时重置重试计数
+        resetPlaybackRetry();
+    });
     dom.audioPlayer.addEventListener("pause", updatePlayPauseButton);
+    dom.audioPlayer.addEventListener("canplay", () => {
+        // 音频可以播放时也重置重试计数
+        resetPlaybackRetry();
+    });
     dom.audioPlayer.addEventListener("volumechange", onAudioVolumeChange);
 
     dom.progressBar.addEventListener("input", handleProgressInput);
@@ -4849,8 +4860,12 @@ async function playSong(song, options = {}) {
             playPromise = dom.audioPlayer.play();
             if (playPromise !== undefined) {
                 playPromise.catch(error => {
-                    console.error('播放失败:', error);
-                    showNotification('播放失败，请检查网络连接', 'error');
+                    // 如果是自动播放失败且正在重试，使用新的错误处理机制
+                    if (state.isRetryingPlayback || state.playbackRetryCount > 0) {
+                        handlePlaybackError(error, true);
+                    } else {
+                        handlePlaybackError(error, false);
+                    }
                 });
             } else {
                 playPromise = null;
@@ -4927,6 +4942,10 @@ function autoPlayNext() {
         dom.audioPlayer.__solaraMediaSessionHandledEnded = false;
         return;
     }
+
+    // 歌曲自然播放完成，重置重试计数
+    resetPlaybackRetry();
+
     const mode = getActivePlayMode();
     if (mode === "single") {
         // 单曲循环
@@ -4937,6 +4956,48 @@ function autoPlayNext() {
 
     playNext();
     updatePlayPauseButton();
+}
+
+// 处理播放失败，自动跳转到下一首歌曲
+function handlePlaybackError(error, isAutoPlay = true) {
+    console.error('播放失败:', error);
+
+    if (!isAutoPlay) {
+        // 如果不是自动播放场景，只显示错误提示
+        showNotification('播放失败，请检查网络连接', 'error');
+        return;
+    }
+
+    // 检查是否达到最大重试次数
+    if (state.playbackRetryCount >= state.maxPlaybackRetries) {
+        showNotification(`连续${state.maxPlaybackRetries + 1}首歌曲播放失败，停止自动播放`, 'warning');
+        state.playbackRetryCount = 0;
+        state.isRetryingPlayback = false;
+        debugLog(`达到最大重试次数${state.maxPlaybackRetries}，停止自动播放`);
+        return;
+    }
+
+    state.playbackRetryCount++;
+    state.isRetryingPlayback = true;
+
+    const songName = state.currentSong?.name || '未知歌曲';
+    showNotification(`"${songName}"播放失败，自动跳过 (${state.playbackRetryCount}/${state.maxPlaybackRetries + 1})`, 'warning');
+    debugLog(`播放失败重试 ${state.playbackRetryCount}: ${songName}`);
+
+    // 延迟一点时间再播放下一首，避免连续请求
+    setTimeout(() => {
+        playNext();
+        updatePlayPauseButton();
+    }, 500);
+}
+
+// 重置播放重试计数
+function resetPlaybackRetry() {
+    if (state.playbackRetryCount > 0) {
+        debugLog(`播放成功，重置重试计数 (之前重试了${state.playbackRetryCount}次)`);
+    }
+    state.playbackRetryCount = 0;
+    state.isRetryingPlayback = false;
 }
 
 // 修复：播放下一首 - 支持播放模式和统一播放列表
