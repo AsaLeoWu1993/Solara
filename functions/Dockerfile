@@ -13,13 +13,14 @@ RUN npm install && npm cache clean --force
 
 # 复制源代码
 COPY server.js ./
+COPY server.cjs ./
 
 # 暴露端口
 EXPOSE 8080
 
 # 设置健康检查（检查 /health 端点）
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:8080/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
+    CMD node -e "import('http').then(http => http.get('http://localhost:8080/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1)))"
 
 # 启动API服务
-CMD ["node", "server.js"]
+CMD ["node", "server.cjs"]
