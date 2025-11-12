@@ -2,10 +2,12 @@
   "name": "solara-api-proxy",
   "version": "1.0.0",
   "description": "API proxy for Solara Music Player",
+  "type": "module",
   "main": "proxy.js",
   "scripts": {
     "start": "node proxy.js",
-    "dev": "ts-node proxy.ts"
+    "dev": "ts-node proxy.ts",
+    "server": "node server.cjs"
   },
   "dependencies": {
     "express": "^4.18.2",
