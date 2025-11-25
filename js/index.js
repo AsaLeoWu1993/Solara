@@ -1,6 +1,7 @@
 const dom = {
     container: document.getElementById("mainContainer"),
     backgroundStage: document.getElementById("backgroundStage"),
+    particleCanvas: document.getElementById("particleCanvas"),
     backgroundBaseLayer: document.getElementById("backgroundBaseLayer"),
     backgroundTransitionLayer: document.getElementById("backgroundTransitionLayer"),
     playlist: document.getElementById("playlist"),
@@ -5756,10 +5757,11 @@ const Visualizer = {
         // So radius should be around (width / 1.5) / 2 = width / 3
         const radius = Math.min(width, height) / 3.2;
 
-        ctx.clearRect(0, 0, width, height);
+        // Check if mobile or desktop for different line lengths
+        const isMobile = window.innerWidth <= 768;
+        const lengthMultiplier = isMobile ? 0.5 : 0.8; // PC版加长线条
 
-        // Get primary color
-        const primaryColor = getComputedStyle(document.body).getPropertyValue('--primary-color').trim() || '#1abc9c';
+        ctx.clearRect(0, 0, width, height);
 
         ctx.beginPath();
         const bars = 120; // Number of bars
@@ -5770,8 +5772,8 @@ const Visualizer = {
             const dataIndex = Math.floor(i * (bufferLength / 2) / bars);
             const value = dataArray[dataIndex];
 
-            // Scale value
-            const barHeight = (value / 255) * (radius * 0.5);
+            // Scale value with platform-specific multiplier
+            const barHeight = (value / 255) * (radius * lengthMultiplier);
 
             const angle = i * step;
 
@@ -5783,14 +5785,19 @@ const Visualizer = {
             const x2 = centerX + Math.cos(angle) * (radius + barHeight);
             const y2 = centerY + Math.sin(angle) * (radius + barHeight);
 
+            // Create rainbow color for each bar
+            const hue = (i / bars) * 360; // Full spectrum hue rotation
+            const saturation = 70 + (value / 255) * 30; // Dynamic saturation
+            const lightness = 50 + (value / 255) * 20; // Dynamic lightness
+
+            ctx.strokeStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+            ctx.beginPath();
             ctx.moveTo(x1, y1);
             ctx.lineTo(x2, y2);
+            ctx.lineWidth = (Math.PI * 2 * radius / bars) * 0.6;
+            ctx.lineCap = 'round';
+            ctx.stroke();
         }
-
-        ctx.strokeStyle = primaryColor;
-        ctx.lineWidth = (Math.PI * 2 * radius / bars) * 0.6;
-        ctx.lineCap = 'round';
-        ctx.stroke();
     }
 };
 
@@ -5799,4 +5806,345 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => Visualizer.init());
 } else {
     Visualizer.init();
+}
+
+// 粒子动画系统
+const ParticleSystem = {
+    canvas: null,
+    ctx: null,
+    particles: [],
+    animationId: null,
+    isActive: false,
+    isDark: false,
+    particleTypes: ['stars', 'bubbles', 'fireflies', 'snow', 'hearts'],
+    currentType: 0,
+    mouseX: 0,
+    mouseY: 0,
+    lastClickTime: 0,
+    clickEffect: [],
+
+    // 粒子类
+    Particle: function(x, y, type = 'stars') {
+        this.x = x;
+        this.y = y;
+        this.type = type;
+        this.reset();
+    },
+
+    init() {
+        if (!dom.particleCanvas) return;
+
+        this.canvas = dom.particleCanvas;
+        this.ctx = this.canvas.getContext('2d');
+        this.isDark = document.body.classList.contains('dark-mode');
+
+        // 设置画布大小
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+
+        // 鼠标交互
+        this.canvas.addEventListener('mousemove', (e) => {
+            this.mouseX = e.clientX;
+            this.mouseY = e.clientY;
+        });
+
+        this.canvas.addEventListener('click', (e) => {
+            const now = Date.now();
+            if (now - this.lastClickTime > 300) {
+                this.currentType = (this.currentType + 1) % this.particleTypes.length;
+                this.createClickEffect(e.clientX, e.clientY);
+                this.lastClickTime = now;
+            }
+        });
+
+        // 监听主题切换
+        const observer = new MutationObserver(() => {
+            this.isDark = document.body.classList.contains('dark-mode');
+        });
+        observer.observe(document.body, {
+            attributes: true,
+            attributeFilter: ['class']
+        });
+
+        this.start();
+    },
+
+    resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+    },
+
+    start() {
+        this.isActive = true;
+        this.createParticles();
+        this.animate();
+    },
+
+    createParticles() {
+        this.particles = [];
+        const particleCount = Math.min(150, Math.floor((this.canvas.width * this.canvas.height) / 15000));
+        const type = this.particleTypes[this.currentType];
+
+        for (let i = 0; i < particleCount; i++) {
+            this.particles.push(new this.Particle(
+                Math.random() * this.canvas.width,
+                Math.random() * this.canvas.height,
+                type
+            ));
+        }
+    },
+
+    createClickEffect(x, y) {
+        const colors = this.isDark ?
+            ['#34d1b6', '#2fd2a8', '#1abc9c', '#16a085', '#27ae60'] :
+            ['#e74c3c', '#f39c12', '#f1c40f', '#3498db', '#9b59b6'];
+
+        for (let i = 0; i < 20; i++) {
+            this.clickEffect.push({
+                x: x,
+                y: y,
+                vx: (Math.random() - 0.5) * 10,
+                vy: (Math.random() - 0.5) * 10,
+                radius: Math.random() * 3 + 1,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                life: 1.0,
+                decay: 0.02
+            });
+        }
+    },
+
+    animate() {
+        if (!this.isActive) return;
+
+        this.animationId = requestAnimationFrame(() => this.animate());
+
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // 绘制背景粒子
+        this.particles.forEach(particle => {
+            this.updateParticle(particle);
+            this.drawParticle(particle);
+        });
+
+        // 绘制点击特效
+        this.clickEffect = this.clickEffect.filter(effect => {
+            effect.x += effect.vx;
+            effect.y += effect.vy;
+            effect.life -= effect.decay;
+            effect.vx *= 0.98;
+            effect.vy *= 0.98;
+
+            if (effect.life > 0) {
+                this.drawClickEffect(effect);
+                return true;
+            }
+            return false;
+        });
+    },
+
+    updateParticle(particle) {
+        const distToMouse = Math.sqrt(
+            Math.pow(this.mouseX - particle.x, 2) +
+            Math.pow(this.mouseY - particle.y, 2)
+        );
+
+        if (distToMouse < 100) {
+            const angle = Math.atan2(particle.y - this.mouseY, particle.x - this.mouseX);
+            const force = (100 - distToMouse) / 100;
+            particle.x += Math.cos(angle) * force * 2;
+            particle.y += Math.sin(angle) * force * 2;
+        }
+
+        switch (particle.type) {
+            case 'stars':
+                particle.twinkle += 0.05;
+                particle.y += particle.speed;
+                particle.x += Math.sin(Date.now() * 0.001 + particle.y * 0.01) * 0.5;
+                break;
+            case 'bubbles':
+                particle.y -= particle.speed;
+                particle.x += Math.sin(Date.now() * 0.002 + particle.y * 0.02) * 1;
+                particle.wobble += 0.1;
+                break;
+            case 'fireflies':
+                particle.angle += particle.turnSpeed;
+                particle.x += Math.cos(particle.angle) * particle.speed;
+                particle.y += Math.sin(particle.angle) * particle.speed * 0.5;
+                particle.glow = 0.5 + Math.sin(Date.now() * 0.003 + particle.phase) * 0.5;
+                break;
+            case 'snow':
+                particle.y += particle.speed;
+                particle.x += Math.sin(Date.now() * 0.001 + particle.phase) * 2;
+                particle.rotation += particle.rotationSpeed;
+                break;
+            case 'hearts':
+                particle.y -= particle.speed;
+                particle.x += Math.sin(Date.now() * 0.002 + particle.phase) * 1;
+                particle.scale = 0.8 + Math.sin(Date.now() * 0.003 + particle.phase) * 0.2;
+                particle.rotation += 0.02;
+                break;
+        }
+
+        // 边界处理
+        if (particle.y < -10) particle.y = this.canvas.height + 10;
+        if (particle.y > this.canvas.height + 10) particle.y = -10;
+        if (particle.x < -10) particle.x = this.canvas.width + 10;
+        if (particle.x > this.canvas.width + 10) particle.x = -10;
+    },
+
+    drawParticle(particle) {
+        this.ctx.save();
+
+        const alpha = this.isDark ? 0.8 : 0.6;
+
+        switch (particle.type) {
+            case 'stars':
+                this.drawStar(particle.x, particle.y, particle.size,
+                            0.5 + Math.sin(particle.twinkle) * 0.5, alpha);
+                break;
+            case 'bubbles':
+                this.drawBubble(particle.x, particle.y, particle.size,
+                               Math.sin(particle.wobble) * 0.2 + 0.3, alpha);
+                break;
+            case 'fireflies':
+                this.drawFirefly(particle.x, particle.y, particle.size, particle.glow, alpha);
+                break;
+            case 'snow':
+                this.drawSnowflake(particle.x, particle.y, particle.size, particle.rotation, alpha);
+                break;
+            case 'hearts':
+                this.drawHeart(particle.x, particle.y, particle.size, particle.rotation, particle.scale, alpha);
+                break;
+        }
+
+        this.ctx.restore();
+    },
+
+    drawStar(x, y, size, brightness, alpha) {
+        this.ctx.fillStyle = this.isDark ?
+            `rgba(255, 255, 255, ${brightness * alpha})` :
+            `rgba(255, 215, 0, ${brightness * alpha})`;
+        this.ctx.beginPath();
+        for (let i = 0; i < 5; i++) {
+            const angle = (i * 4 * Math.PI) / 5 - Math.PI / 2;
+            const px = x + Math.cos(angle) * size;
+            const py = y + Math.sin(angle) * size;
+            if (i === 0) this.ctx.moveTo(px, py);
+            else this.ctx.lineTo(px, py);
+        }
+        this.ctx.closePath();
+        this.ctx.fill();
+    },
+
+    drawBubble(x, y, size, wobble, alpha) {
+        this.ctx.strokeStyle = this.isDark ?
+            `rgba(52, 209, 182, ${alpha})` :
+            `rgba(52, 152, 219, ${alpha})`;
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.arc(x + wobble * size, y, size, 0, Math.PI * 2);
+        this.ctx.stroke();
+
+        this.ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.3})`;
+        this.ctx.beginPath();
+        this.ctx.arc(x + wobble * size - size * 0.3, y - size * 0.3, size * 0.2, 0, Math.PI * 2);
+        this.ctx.fill();
+    },
+
+    drawFirefly(x, y, size, glow, alpha) {
+        const gradient = this.ctx.createRadialGradient(x, y, 0, x, y, size * 3);
+        gradient.addColorStop(0, this.isDark ?
+            `rgba(255, 255, 100, ${glow * alpha})` :
+            `rgba(255, 165, 0, ${glow * alpha})`);
+        gradient.addColorStop(1, 'rgba(255, 255, 100, 0)');
+
+        this.ctx.fillStyle = gradient;
+        this.ctx.beginPath();
+        this.ctx.arc(x, y, size * 3, 0, Math.PI * 2);
+        this.ctx.fill();
+
+        this.ctx.fillStyle = `rgba(255, 255, 200, ${alpha})`;
+        this.ctx.beginPath();
+        this.ctx.arc(x, y, size, 0, Math.PI * 2);
+        this.ctx.fill();
+    },
+
+    drawSnowflake(x, y, size, rotation, alpha) {
+        this.ctx.strokeStyle = this.isDark ?
+            `rgba(255, 255, 255, ${alpha})` :
+            `rgba(135, 206, 250, ${alpha})`;
+        this.ctx.lineWidth = 2;
+        this.ctx.save();
+        this.ctx.translate(x, y);
+        this.ctx.rotate(rotation);
+
+        for (let i = 0; i < 6; i++) {
+            this.ctx.rotate(Math.PI / 3);
+            this.ctx.beginPath();
+            this.ctx.moveTo(0, 0);
+            this.ctx.lineTo(0, -size);
+            this.ctx.stroke();
+
+            this.ctx.beginPath();
+            this.ctx.moveTo(0, -size * 0.7);
+            this.ctx.lineTo(-size * 0.3, -size * 0.8);
+            this.ctx.moveTo(0, -size * 0.7);
+            this.ctx.lineTo(size * 0.3, -size * 0.8);
+            this.ctx.stroke();
+        }
+
+        this.ctx.restore();
+    },
+
+    drawHeart(x, y, size, rotation, scale, alpha) {
+        this.ctx.fillStyle = this.isDark ?
+            `rgba(231, 76, 60, ${alpha})` :
+            `rgba(255, 182, 193, ${alpha})`;
+        this.ctx.save();
+        this.ctx.translate(x, y);
+        this.ctx.rotate(rotation);
+        this.ctx.scale(scale, scale);
+
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, -size * 0.3);
+        this.ctx.bezierCurveTo(-size * 0.5, -size * 0.8, -size, -size * 0.5, -size, 0);
+        this.ctx.bezierCurveTo(-size, size * 0.3, -size * 0.5, size * 0.8, 0, size);
+        this.ctx.bezierCurveTo(size * 0.5, size * 0.8, size, size * 0.3, size, 0);
+        this.ctx.bezierCurveTo(size, -size * 0.5, size * 0.5, -size * 0.8, 0, -size * 0.3);
+        this.ctx.fill();
+
+        this.ctx.restore();
+    },
+
+    drawClickEffect(effect) {
+        this.ctx.globalAlpha = effect.life;
+        this.ctx.fillStyle = effect.color;
+        this.ctx.beginPath();
+        this.ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2);
+        this.ctx.fill();
+        this.ctx.globalAlpha = 1;
+    }
+};
+
+// 粒子类扩展方法
+ParticleSystem.Particle.prototype.reset = function() {
+    this.type = this.type || 'stars';
+    this.speed = Math.random() * 2 + 1;
+    this.size = Math.random() * 3 + 1;
+    this.twinkle = Math.random() * Math.PI * 2;
+    this.wobble = Math.random() * Math.PI * 2;
+    this.angle = Math.random() * Math.PI * 2;
+    this.turnSpeed = (Math.random() - 0.5) * 0.1;
+    this.glow = Math.random();
+    this.phase = Math.random() * Math.PI * 2;
+    this.rotation = Math.random() * Math.PI * 2;
+    this.rotationSpeed = (Math.random() - 0.5) * 0.05;
+    this.scale = 1;
+};
+
+// 初始化粒子系统
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => ParticleSystem.init());
+} else {
+    ParticleSystem.init();
 }
