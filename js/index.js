@@ -568,6 +568,123 @@ const savedCurrentPlaylist = (() => {
     return playlists.includes(stored) ? stored : "playlist";
 })();
 
+// 音频URL缓存配置
+const AUDIO_URL_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7天（毫秒）
+const AUDIO_URL_CACHE_KEY = "solara_audio_url_cache";
+const PRELOAD_CACHE_KEY = "solara_preload_cache";
+
+// URL缓存管理工具
+const UrlCacheManager = {
+    // 获取缓存键
+    getCacheKey(song, quality) {
+        return `${song.source || "netease"}_${song.id}_${quality}_${song.pic_id || ""}`;
+    },
+
+    // 获取缓存数据
+    get(song, quality) {
+        try {
+            const cache = safeGetLocalStorage(AUDIO_URL_CACHE_KEY) || "{}";
+            const cacheData = JSON.parse(cache);
+            const key = this.getCacheKey(song, quality);
+            const cached = cacheData[key];
+
+            if (!cached) return null;
+
+            // 检查是否过期
+            if (Date.now() - cached.timestamp > AUDIO_URL_CACHE_TTL) {
+                this.remove(song, quality);
+                return null;
+            }
+
+            return cached;
+        } catch (error) {
+            console.warn("URL缓存读取失败:", error);
+            return null;
+        }
+    },
+
+    // 设置缓存数据
+    set(song, quality, audioData) {
+        try {
+            const cache = safeGetLocalStorage(AUDIO_URL_CACHE_KEY) || "{}";
+            const cacheData = JSON.parse(cache);
+            const key = this.getCacheKey(song, quality);
+
+            cacheData[key] = {
+                audioData: audioData,
+                timestamp: Date.now(),
+                songId: song.id,
+                quality: quality
+            };
+
+            safeSetLocalStorage(AUDIO_URL_CACHE_KEY, JSON.stringify(cacheData));
+        } catch (error) {
+            console.warn("URL缓存写入失败:", error);
+        }
+    },
+
+    // 移除缓存数据
+    remove(song, quality) {
+        try {
+            const cache = safeGetLocalStorage(AUDIO_URL_CACHE_KEY) || "{}";
+            const cacheData = JSON.parse(cache);
+            const key = this.getCacheKey(song, quality);
+
+            delete cacheData[key];
+            safeSetLocalStorage(AUDIO_URL_CACHE_KEY, JSON.stringify(cacheData));
+        } catch (error) {
+            console.warn("URL缓存删除失败:", error);
+        }
+    },
+
+    // 清理过期缓存
+    cleanExpired() {
+        try {
+            const cache = safeGetLocalStorage(AUDIO_URL_CACHE_KEY) || "{}";
+            const cacheData = JSON.parse(cache);
+            const now = Date.now();
+            let cleaned = false;
+
+            Object.keys(cacheData).forEach(key => {
+                if (now - cacheData[key].timestamp > AUDIO_URL_CACHE_TTL) {
+                    delete cacheData[key];
+                    cleaned = true;
+                }
+            });
+
+            if (cleaned) {
+                safeSetLocalStorage(AUDIO_URL_CACHE_KEY, JSON.stringify(cacheData));
+                console.log("已清理过期的音频URL缓存");
+            }
+        } catch (error) {
+            console.warn("清理过期缓存失败:", error);
+        }
+    },
+
+    // 获取缓存统计
+    getStats() {
+        try {
+            const cache = safeGetLocalStorage(AUDIO_URL_CACHE_KEY) || "{}";
+            const cacheData = JSON.parse(cache);
+            const now = Date.now();
+            let validCount = 0;
+            let expiredCount = 0;
+
+            Object.values(cacheData).forEach(item => {
+                if (now - item.timestamp > AUDIO_URL_CACHE_TTL) {
+                    expiredCount++;
+                } else {
+                    validCount++;
+                }
+            });
+
+            return { validCount, expiredCount, totalCount: validCount + expiredCount };
+        } catch (error) {
+            return { validCount: 0, expiredCount: 0, totalCount: 0 };
+        }
+    }
+};
+
 // API配置 - 支持环境变量配置
 const API = {
     baseUrl: "__SOLARA_API_BASE_URL__" || "/proxy",
@@ -684,6 +801,64 @@ const API = {
     getSongUrl: (song, quality = "320") => {
         const signature = API.generateSignature();
         return `${API.baseUrl}?types=url&id=${song.id}&source=${song.source || "netease"}&br=${quality}&s=${signature}`;
+    },
+
+    // 获取音频数据（带缓存）
+    getSongData: async (song, quality = "320", useCache = true) => {
+        // 尝试从缓存获取
+        if (useCache) {
+            const cached = UrlCacheManager.get(song, quality);
+            if (cached && cached.audioData) {
+                debugLog(`使用缓存的音频URL: ${song.name}`);
+                return cached.audioData;
+            }
+        }
+
+        // 缓存未命中，从API获取
+        const audioUrl = API.getSongUrl(song, quality);
+        debugLog(`从API获取音频URL: ${audioUrl}`);
+
+        try {
+            const audioData = await API.fetchJson(audioUrl);
+
+            if (audioData && audioData.url) {
+                // 存入缓存
+                if (useCache) {
+                    UrlCacheManager.set(song, quality, audioData);
+                    debugLog(`已缓存音频URL: ${song.name}`);
+                }
+            }
+
+            return audioData;
+        } catch (error) {
+            console.error("获取音频数据失败:", error);
+            throw error;
+        }
+    },
+
+    // 预加载音频URL
+    preloadSongUrl: async (song, quality = "320") => {
+        try {
+            const audioData = await API.getSongData(song, quality, true);
+
+            // 存储到预加载缓存
+            const preloadCache = safeGetLocalStorage(PRELOAD_CACHE_KEY) || "{}";
+            const cacheData = JSON.parse(preloadCache);
+            const key = UrlCacheManager.getCacheKey(song, quality);
+
+            cacheData[key] = {
+                audioData: audioData,
+                timestamp: Date.now()
+            };
+
+            safeSetLocalStorage(PRELOAD_CACHE_KEY, JSON.stringify(cacheData));
+            debugLog(`预加载完成: ${song.name}`);
+
+            return audioData;
+        } catch (error) {
+            console.warn(`预加载失败 ${song.name}:`, error);
+            return null;
+        }
     },
 
     getLyric: (song) => {
@@ -4762,10 +4937,10 @@ async function playSong(song, options = {}) {
         updateCurrentSongInfo(song, { loadArtwork: false });
 
         const quality = state.playbackQuality || '320';
-        const audioUrl = API.getSongUrl(song, quality);
-        debugLog(`获取音频URL: ${audioUrl}`);
 
-        const audioData = await API.fetchJson(audioUrl);
+        // 使用缓存获取音频数据
+        const audioData = await API.getSongData(song, quality, true);
+        debugLog(`获取音频数据完成: ${song.name}`);
 
         if (!audioData || !audioData.url) {
             throw new Error('无法获取音频播放地址');
@@ -4902,6 +5077,9 @@ function scheduleDeferredSongAssets(song, playPromise) {
         loadLyrics(song);
         state.audioReadyForPalette = true;
         attemptPaletteApplication();
+
+        // 预加载下一首歌曲的音频URL
+        preloadNextSong(song);
     };
 
     const kickoff = () => {
@@ -5569,8 +5747,8 @@ async function downloadSong(song, quality = "320") {
     try {
         showNotification("正在准备下载...");
 
-        const audioUrl = API.getSongUrl(song, quality);
-        const audioData = await API.fetchJson(audioUrl);
+        // 使用缓存获取音频数据
+        const audioData = await API.getSongData(song, quality, true);
 
         if (audioData && audioData.url) {
             const proxiedAudioUrl = buildAudioProxyUrl(audioData.url);
@@ -6141,6 +6319,116 @@ ParticleSystem.Particle.prototype.reset = function() {
     this.rotationSpeed = (Math.random() - 0.5) * 0.05;
     this.scale = 1;
 };
+
+// 获取下一首歌曲信息
+function getNextSongInfo(currentSong) {
+    let nextSong = null;
+    let playlist = [];
+    let currentIndex = -1;
+
+    // 确定当前播放列表
+    if (state.currentList === "favorite") {
+        playlist = ensureFavoriteSongsArray();
+        currentIndex = state.currentFavoriteIndex;
+        const mode = state.favoritePlayMode || "list";
+
+        if (mode === "random") {
+            // 随机模式：随机选择下一首（但不与当前相同）
+            do {
+                currentIndex = Math.floor(Math.random() * playlist.length);
+            } while (playlist.length > 1 && currentIndex === state.currentFavoriteIndex);
+        } else if (mode === "list") {
+            // 列表模式：下一首
+            currentIndex = (state.currentFavoriteIndex + 1) % playlist.length;
+        }
+        //单曲循环不预加载下一首
+
+    } else {
+        // 普通播放列表
+        if (state.currentPlaylist === "playlist") {
+            playlist = state.playlistSongs;
+        } else if (state.currentPlaylist === "online") {
+            playlist = state.onlineSongs;
+        } else if (state.currentPlaylist === "search") {
+            playlist = state.searchResults;
+        }
+
+        // 找到当前歌曲的索引
+        currentIndex = playlist.findIndex(item => item.id === currentSong.id);
+        const mode = state.playMode || "list";
+
+        if (mode === "random") {
+            // 随机模式
+            do {
+                currentIndex = Math.floor(Math.random() * playlist.length);
+            } while (playlist.length > 1 && playlist[currentIndex]?.id === currentSong.id);
+        } else if (mode === "list") {
+            // 列表模式：下一首
+            currentIndex = (currentIndex + 1) % playlist.length;
+        }
+        //单曲循环不预加载下一首
+    }
+
+    // 检查是否为单曲循环模式
+    const currentMode = state.currentList === "favorite"
+        ? (state.favoritePlayMode || "list")
+        : (state.playMode || "list");
+
+    if (currentMode !== "single" && playlist.length > 0 && currentIndex >= 0 && currentIndex < playlist.length) {
+        nextSong = playlist[currentIndex];
+    }
+
+    return nextSong;
+}
+
+// 预加载下一首歌曲
+async function preloadNextSong(currentSong) {
+    try {
+        const nextSong = getNextSongInfo(currentSong);
+
+        if (nextSong && nextSong.id !== currentSong.id) {
+            // 延迟预加载，避免影响当前歌曲播放
+            setTimeout(async () => {
+                try {
+                    // 检查是否已经在预加载缓存中
+                    const quality = state.playbackQuality || '320';
+                    const cacheKey = UrlCacheManager.getCacheKey(nextSong, quality);
+
+                    const preloadCache = safeGetLocalStorage(PRELOAD_CACHE_KEY) || "{}";
+                    const cacheData = JSON.parse(preloadCache);
+
+                    if (!cacheData[cacheKey]) {
+                        debugLog(`开始预加载下一首歌曲: ${nextSong.name}`);
+                        await API.preloadSongUrl(nextSong, quality);
+                    }
+                } catch (error) {
+                    // 预加载失败不影响当前播放
+                    console.warn("预加载下一首歌曲失败:", error);
+                }
+            }, 3000); // 3秒后开始预加载
+        }
+    } catch (error) {
+        console.warn("获取下一首歌曲信息失败:", error);
+    }
+}
+
+// 智能刷新机制 - 清理过期缓存
+function initCacheManagement() {
+    // 启动时清理过期缓存
+    UrlCacheManager.cleanExpired();
+
+    // 每30分钟清理一次过期缓存
+    setInterval(() => {
+        UrlCacheManager.cleanExpired();
+    }, 30 * 60 * 1000);
+
+    // 显示缓存统计
+    const stats = UrlCacheManager.getStats();
+    console.log(`音频URL缓存统计: 有效${stats.validCount}个, 过期${stats.expiredCount}个, 总计${stats.totalCount}个`);
+}
+
+// 初始化缓存管理
+initCacheManagement();
 
 // 初始化粒子系统
 if (document.readyState === 'loading') {
