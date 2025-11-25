@@ -27,6 +27,7 @@ const dom = {
     searchResultsList: document.getElementById("searchResultsList"),
     notification: document.getElementById("notification"),
     albumCover: document.getElementById("albumCover"),
+    spectrumCanvas: document.getElementById("spectrumCanvas"),
     currentSongTitle: document.getElementById("currentSongTitle"),
     currentSongArtist: document.getElementById("currentSongArtist"),
     debugInfo: document.getElementById("debugInfo"),
@@ -723,7 +724,7 @@ const state = {
     currentAudioUrl: null,
     lyricsData: [],
     currentLyricLine: -1,
-        currentPlaylist: savedCurrentPlaylist, // 'online', 'search', or 'playlist'
+    currentPlaylist: savedCurrentPlaylist, // 'online', 'search', or 'playlist'
     searchPage: 1,
     searchKeyword: "", // 确保这里有初始值
     searchSource: savedSearchSource,
@@ -863,7 +864,7 @@ saveFavoriteState();
             { src: base, sizes: '256x256', type },
             { src: base, sizes: '192x192', type },
             { src: base, sizes: '128x128', type },
-            { src: base, sizes: '96x96',  type }
+            { src: base, sizes: '96x96', type }
         ];
     }
 
@@ -885,7 +886,7 @@ saveFavoriteState();
             // 某些旧 iOS 可能对 artwork 尺寸挑剔，失败时用最小配置重试
             try {
                 navigator.mediaSession.metadata = new MediaMetadata({ title, artist });
-            } catch (_) {}
+            } catch (_) { }
         }
     }
 
@@ -960,12 +961,12 @@ saveFavoriteState();
             } else {
                 try {
                     navigator.mediaSession.setActionHandler('seekto', null);
-                } catch (_) {}
+                } catch (_) { }
             }
 
             // 可选：切换播放状态（大部分系统自己会处理）
             navigator.mediaSession.setActionHandler('play', async () => {
-                try { await audio.play(); } catch(_) {}
+                try { await audio.play(); } catch (_) { }
             });
             navigator.mediaSession.setActionHandler('pause', () => audio.pause());
         } catch (_) {
@@ -2928,10 +2929,10 @@ function setupInteractions() {
         debugLog(`点击事件触发: ${e.target.tagName} ${e.target.className} ${e.target.id}`);
 
         // 检查多种可能的目标元素
-        const loadMoreBtn = e.target.closest(".load-more-btn") || 
-                           e.target.closest("#loadMoreBtn") ||
-                           (e.target.id === "loadMoreBtn" ? e.target : null) ||
-                           (e.target.classList.contains("load-more-btn") ? e.target : null);
+        const loadMoreBtn = e.target.closest(".load-more-btn") ||
+            e.target.closest("#loadMoreBtn") ||
+            (e.target.id === "loadMoreBtn" ? e.target : null) ||
+            (e.target.classList.contains("load-more-btn") ? e.target : null);
 
         if (loadMoreBtn) {
             debugLog("检测到加载更多按钮点击");
@@ -4762,7 +4763,7 @@ async function playSong(song, options = {}) {
         const quality = state.playbackQuality || '320';
         const audioUrl = API.getSongUrl(song, quality);
         debugLog(`获取音频URL: ${audioUrl}`);
-        
+
         const audioData = await API.fetchJson(audioUrl);
 
         if (!audioData || !audioData.url) {
@@ -5440,7 +5441,7 @@ function displayLyrics() {
         return `<div data-time="${lyric.time}" data-index="${index}" class="lyric-line">${lyric.text}</div>`;
     }).join("");
 
-    
+
     setLyricsContentHtml(lyricsHtml);
     if (dom.lyrics) {
         dom.lyrics.dataset.placeholder = "default";
@@ -5460,7 +5461,7 @@ function syncLyrics() {
 
     const currentTime = dom.audioPlayer.currentTime;
 
-        // 取消之前的动画帧请求
+    // 取消之前的动画帧请求
     if (syncLyricsFrameId) {
         cancelAnimationFrame(syncLyricsFrameId);
     }
@@ -5487,7 +5488,7 @@ function performLyricsSync(currentTime) {
     // 检查是否需要更新
     const needsUpdate = currentLineIndex !== state.currentLyricLine;
 
-          if (needsUpdate) {
+    if (needsUpdate) {
         state.currentLyricLine = currentLineIndex;
 
         const lyricTargets = [];
@@ -5652,4 +5653,150 @@ function showNotification(message, type = "success") {
     setTimeout(() => {
         notification.classList.remove("show");
     }, 3000);
+}
+
+// Spectrum Visualizer
+const Visualizer = {
+    audioContext: null,
+    analyser: null,
+    source: null,
+    canvas: dom.spectrumCanvas,
+    ctx: dom.spectrumCanvas ? dom.spectrumCanvas.getContext('2d') : null,
+    isActive: false,
+    animationId: null,
+
+    init() {
+        if (!this.canvas || !this.ctx) return;
+
+        // Resize canvas
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+
+        // Initialize AudioContext on user interaction
+        const initAudio = () => {
+            if (this.audioContext) return;
+
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.audioContext = new AudioContext();
+            this.analyser = this.audioContext.createAnalyser();
+            this.analyser.fftSize = 512;
+
+            // Connect audio player
+            if (dom.audioPlayer) {
+                try {
+                    this.source = this.audioContext.createMediaElementSource(dom.audioPlayer);
+                    this.source.connect(this.analyser);
+                    this.analyser.connect(this.audioContext.destination);
+                } catch (e) {
+                    console.warn("Visualizer connection failed:", e);
+                }
+            }
+
+            this.start();
+
+            // Remove listeners
+            document.removeEventListener('click', initAudio);
+            document.removeEventListener('touchstart', initAudio);
+            document.removeEventListener('keydown', initAudio);
+        };
+
+        document.addEventListener('click', initAudio);
+        document.addEventListener('touchstart', initAudio);
+        document.addEventListener('keydown', initAudio);
+
+        // Also try to init if audio starts playing
+        if (dom.audioPlayer) {
+            dom.audioPlayer.addEventListener('play', () => {
+                if (!this.audioContext) initAudio();
+                if (this.audioContext && this.audioContext.state === 'suspended') {
+                    this.audioContext.resume();
+                }
+                this.isActive = true;
+                this.draw();
+            });
+            dom.audioPlayer.addEventListener('pause', () => {
+                // Keep drawing for a bit to let it decay or stop immediately?
+                // Let's stop to save battery
+                this.isActive = false;
+                if (this.animationId) cancelAnimationFrame(this.animationId);
+            });
+        }
+    },
+
+    resize() {
+        if (!this.canvas) return;
+        const rect = this.canvas.parentElement.getBoundingClientRect();
+        // Make canvas larger than container for the halo effect
+        const scale = window.devicePixelRatio || 1;
+        this.canvas.width = rect.width * 1.5 * scale;
+        this.canvas.height = rect.height * 1.5 * scale;
+    },
+
+    start() {
+        this.isActive = true;
+        this.draw();
+    },
+
+    draw() {
+        if (!this.isActive || !this.analyser || !this.ctx) return;
+
+        this.animationId = requestAnimationFrame(() => this.draw());
+
+        const bufferLength = this.analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        this.analyser.getByteFrequencyData(dataArray);
+
+        const ctx = this.ctx;
+        const width = this.canvas.width;
+        const height = this.canvas.height;
+        const centerX = width / 2;
+        const centerY = height / 2;
+        // Radius should match the platter size roughly, which is smaller than canvas
+        // Canvas is 1.5x container. Platter is ~100% of container (max 320px).
+        // So radius should be around (width / 1.5) / 2 = width / 3
+        const radius = Math.min(width, height) / 3.2;
+
+        ctx.clearRect(0, 0, width, height);
+
+        // Get primary color
+        const primaryColor = getComputedStyle(document.body).getPropertyValue('--primary-color').trim() || '#1abc9c';
+
+        ctx.beginPath();
+        const bars = 120; // Number of bars
+        const step = Math.PI * 2 / bars;
+
+        for (let i = 0; i < bars; i++) {
+            // Map bars to frequency data (focus on lower frequencies for better visuals)
+            const dataIndex = Math.floor(i * (bufferLength / 2) / bars);
+            const value = dataArray[dataIndex];
+
+            // Scale value
+            const barHeight = (value / 255) * (radius * 0.5);
+
+            const angle = i * step;
+
+            // Start point (on the circle)
+            const x1 = centerX + Math.cos(angle) * radius;
+            const y1 = centerY + Math.sin(angle) * radius;
+
+            // End point (outwards)
+            const x2 = centerX + Math.cos(angle) * (radius + barHeight);
+            const y2 = centerY + Math.sin(angle) * (radius + barHeight);
+
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+        }
+
+        ctx.strokeStyle = primaryColor;
+        ctx.lineWidth = (Math.PI * 2 * radius / bars) * 0.6;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+    }
+};
+
+// Initialize Visualizer
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => Visualizer.init());
+} else {
+    Visualizer.init();
 }
