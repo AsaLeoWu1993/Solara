@@ -573,6 +573,8 @@ const savedCurrentPlaylist = (() => {
 // 音频URL缓存配置
 const AUDIO_URL_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7天（毫秒）
 const AUDIO_URL_CACHE_KEY = "solara_audio_url_cache";
+const LYRICS_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7天（毫秒）
+const LYRICS_CACHE_KEY = "solara_lyrics_cache";
 const PRELOAD_CACHE_KEY = "solara_preload_cache";
 
 // URL缓存管理工具
@@ -683,6 +685,131 @@ const UrlCacheManager = {
             return { validCount, expiredCount, totalCount: validCount + expiredCount };
         } catch (error) {
             return { validCount: 0, expiredCount: 0, totalCount: 0 };
+        }
+    }
+};
+
+// 歌词缓存管理工具
+const LyricsCacheManager = {
+    // 获取缓存键
+    getCacheKey(song) {
+        return `${song.source || "netease"}_${song.lyric_id || song.id}_lyrics`;
+    },
+
+    // 获取缓存数据
+    get(song) {
+        try {
+            const cache = safeGetLocalStorage(LYRICS_CACHE_KEY) || "{}";
+            const cacheData = JSON.parse(cache);
+            const key = this.getCacheKey(song);
+            const cached = cacheData[key];
+
+            if (!cached) return null;
+
+            // 检查是否过期
+            if (Date.now() - cached.timestamp > LYRICS_CACHE_TTL) {
+                this.remove(song);
+                return null;
+            }
+
+            return cached;
+        } catch (error) {
+            console.warn("歌词缓存读取失败:", error);
+            return null;
+        }
+    },
+
+    // 设置缓存数据
+    set(song, lyricsData) {
+        try {
+            const cache = safeGetLocalStorage(LYRICS_CACHE_KEY) || "{}";
+            const cacheData = JSON.parse(cache);
+            const key = this.getCacheKey(song);
+
+            cacheData[key] = {
+                lyricsData: lyricsData,
+                timestamp: Date.now(),
+                songId: song.id,
+                lyricId: song.lyric_id || song.id,
+                songName: song.name,
+                artist: song.artist
+            };
+
+            safeSetLocalStorage(LYRICS_CACHE_KEY, JSON.stringify(cacheData));
+            console.log(`[歌词缓存] 已缓存歌词: ${song.name} - ${song.artist}`);
+        } catch (error) {
+            console.warn("歌词缓存写入失败:", error);
+        }
+    },
+
+    // 移除缓存数据
+    remove(song) {
+        try {
+            const cache = safeGetLocalStorage(LYRICS_CACHE_KEY) || "{}";
+            const cacheData = JSON.parse(cache);
+            const key = this.getCacheKey(song);
+
+            delete cacheData[key];
+            safeSetLocalStorage(LYRICS_CACHE_KEY, JSON.stringify(cacheData));
+        } catch (error) {
+            console.warn("歌词缓存删除失败:", error);
+        }
+    },
+
+    // 清理过期缓存
+    cleanExpired() {
+        try {
+            const cache = safeGetLocalStorage(LYRICS_CACHE_KEY) || "{}";
+            const cacheData = JSON.parse(cache);
+            const now = Date.now();
+            let cleaned = false;
+
+            Object.keys(cacheData).forEach(key => {
+                if (now - cacheData[key].timestamp > LYRICS_CACHE_TTL) {
+                    delete cacheData[key];
+                    cleaned = true;
+                }
+            });
+
+            if (cleaned) {
+                safeSetLocalStorage(LYRICS_CACHE_KEY, JSON.stringify(cacheData));
+                console.log("已清理过期的歌词缓存");
+            }
+        } catch (error) {
+            console.warn("清理过期歌词缓存失败:", error);
+        }
+    },
+
+    // 获取缓存统计
+    getStats() {
+        try {
+            const cache = safeGetLocalStorage(LYRICS_CACHE_KEY) || "{}";
+            const cacheData = JSON.parse(cache);
+            const now = Date.now();
+            let validCount = 0;
+            let expiredCount = 0;
+
+            Object.values(cacheData).forEach(item => {
+                if (now - item.timestamp > LYRICS_CACHE_TTL) {
+                    expiredCount++;
+                } else {
+                    validCount++;
+                }
+            });
+
+            return { validCount, expiredCount, totalCount: validCount + expiredCount };
+        } catch (error) {
+            return { validCount: 0, expiredCount: 0, totalCount: 0 };
+        }
+    },
+
+    // 清空所有缓存
+    clear() {
+        try {
+            safeSetLocalStorage(LYRICS_CACHE_KEY, "{}");
+            console.log("已清空所有歌词缓存");
+        } catch (error) {
+            console.warn("清空歌词缓存失败:", error);
         }
     }
 };
@@ -5491,12 +5618,41 @@ async function loadLyrics(song) {
             return;
         }
 
-        const lyricUrl = API.getLyric(song);
         console.log(`[歌词] 正在获取歌词: ${song.name} (ID: ${songId})`);
+
+        // 1. 首先检查缓存
+        const cachedLyrics = LyricsCacheManager.get(song);
+        if (cachedLyrics) {
+            console.log(`[歌词缓存] 使用缓存数据: ${song.name} - ${song.artist}`);
+            console.log(`[歌词缓存] 缓存时间: ${new Date(cachedLyrics.timestamp).toLocaleString()}`);
+
+            if (cachedLyrics.lyricsData.lyricText) {
+                // 使用缓存的原始歌词文本解析
+                parseLyrics(cachedLyrics.lyricsData.lyricText);
+                dom.lyrics.classList.remove("empty");
+                dom.lyrics.dataset.placeholder = "default";
+                console.log(`[歌词缓存] 缓存歌词解析成功，共 ${state.lyricsData.length} 行`);
+                return;
+            } else if (cachedLyrics.lyricsData.parsedLyrics) {
+                // 使用缓存的解析后歌词数据
+                state.lyricsData = cachedLyrics.lyricsData.parsedLyrics;
+                displayLyrics();
+                dom.lyrics.classList.remove("empty");
+                dom.lyrics.dataset.placeholder = "default";
+                console.log(`[歌词缓存] 使用缓存解析数据，共 ${state.lyricsData.length} 行`);
+                return;
+            } else {
+                console.warn(`[歌词缓存] 缓存数据格式错误，将重新获取`);
+                LyricsCacheManager.remove(song);
+            }
+        }
+
+        // 2. 缓存未命中，从API获取
+        const lyricUrl = API.getLyric(song);
         console.log(`[歌词] 请求URL: ${lyricUrl}`);
 
         const lyricData = await API.fetchJson(lyricUrl);
-        console.log(`[歌词] 原始响应:`, lyricData);
+        console.log(`[歌词] API响应:`, lyricData);
 
         if (lyricData && lyricData.lyric) {
             // 解析歌词
@@ -5510,11 +5666,25 @@ async function loadLyrics(song) {
                 dom.lyrics.dataset.placeholder = "message";
                 state.lyricsData = [];
                 state.currentLyricLine = -1;
+
+                // 缓存空歌词结果，避免重复请求
+                LyricsCacheManager.set(song, {
+                    lyricText: lyricText,
+                    parsedLyrics: [],
+                    isEmpty: true
+                });
             } else {
                 parseLyrics(lyricText);
                 dom.lyrics.classList.remove("empty");
                 dom.lyrics.dataset.placeholder = "default";
                 console.log(`[歌词] 歌词解析成功，共 ${state.lyricsData.length} 行`);
+
+                // 缓存歌词数据
+                LyricsCacheManager.set(song, {
+                    lyricText: lyricText,
+                    parsedLyrics: state.lyricsData,
+                    isEmpty: false
+                });
             }
         } else {
             console.log(`[歌词] API返回无歌词数据:`, lyricData);
@@ -5524,6 +5694,13 @@ async function loadLyrics(song) {
             state.lyricsData = [];
             state.currentLyricLine = -1;
             debugLog("歌词加载失败: 无歌词数据");
+
+            // 缓存无歌词结果
+            LyricsCacheManager.set(song, {
+                lyricText: "",
+                parsedLyrics: [],
+                isEmpty: true
+            });
         }
     } catch (error) {
         console.error("[歌词] 加载歌词失败:", error);
@@ -6418,15 +6595,19 @@ async function preloadNextSong(currentSong) {
 function initCacheManagement() {
     // 启动时清理过期缓存
     UrlCacheManager.cleanExpired();
+    LyricsCacheManager.cleanExpired();
 
     // 每30分钟清理一次过期缓存
     setInterval(() => {
         UrlCacheManager.cleanExpired();
+        LyricsCacheManager.cleanExpired();
     }, 30 * 60 * 1000);
 
     // 显示缓存统计
-    const stats = UrlCacheManager.getStats();
-    console.log(`音频URL缓存统计: 有效${stats.validCount}个, 过期${stats.expiredCount}个, 总计${stats.totalCount}个`);
+    const audioStats = UrlCacheManager.getStats();
+    const lyricsStats = LyricsCacheManager.getStats();
+    console.log(`音频URL缓存统计: 有效${audioStats.validCount}个, 过期${audioStats.expiredCount}个, 总计${audioStats.totalCount}个`);
+    console.log(`歌词缓存统计: 有效${lyricsStats.validCount}个, 过期${lyricsStats.expiredCount}个, 总计${lyricsStats.totalCount}个`);
 }
 
 // 初始化缓存管理
@@ -6444,8 +6625,40 @@ const TechBackground = {
     isDesktop: false,
 
     init() {
+        console.log('TechBackground: 开始初始化...')
+        console.log('TechBackground: 桌面端检测', {
+            userAgent: navigator.userAgent,
+            htmlClasses: document.documentElement.className,
+            bodyClasses: document.body.className,
+            hasDesktopView: document.documentElement.classList.contains('desktop-view'),
+            hasMobileView: document.documentElement.classList.contains('mobile-view'),
+            windowWidth: window.innerWidth,
+            isMobileUA: /android|iphone|ipad|ipod|mobile|blackberry|phone|opera mini|windows phone/i.test(navigator.userAgent),
+            isSmallScreen: typeof window.matchMedia === "function" && window.matchMedia("(max-width: 820px)").matches
+        })
+
+        console.log('TechBackground: DOM元素检查', {
+            techGridCanvas: !!dom.techGridCanvas,
+            techLinesCanvas: !!dom.techLinesCanvas,
+            gridCanvasElement: dom.techGridCanvas,
+            linesCanvasElement: dom.techLinesCanvas,
+            gridCanvasDisplay: window.getComputedStyle(dom.techGridCanvas).display,
+            linesCanvasDisplay: window.getComputedStyle(dom.techLinesCanvas).display,
+            gridCanvasZIndex: window.getComputedStyle(dom.techGridCanvas).zIndex,
+            linesCanvasZIndex: window.getComputedStyle(dom.techLinesCanvas).zIndex
+        })
+
         if (!dom.techGridCanvas || !dom.techLinesCanvas) {
             console.error('TechBackground: Canvas elements not found');
+            console.error('TechBackground: Available DOM elements:', {
+                techGridCanvas: dom.techGridCanvas,
+                techLinesCanvas: dom.techLinesCanvas,
+                bodyChildren: Array.from(document.body.children).map(el => ({
+                    tagName: el.tagName,
+                    className: el.className,
+                    id: el.id
+                }))
+            })
             return;
         }
 
@@ -6465,7 +6678,16 @@ const TechBackground = {
         console.log('TechBackground: 初始化成功', {
             isDark: this.isDark,
             isDesktop: this.isDesktop,
-            gridCanvasSize: `${this.gridCanvas.width}x${this.gridCanvas.height}`
+            gridCanvasSize: `${this.gridCanvas.width}x${this.gridCanvas.height}`,
+            gridCanvasPosition: {
+                offsetLeft: this.gridCanvas.offsetLeft,
+                offsetTop: this.gridCanvas.offsetTop,
+                offsetWidth: this.gridCanvas.offsetWidth,
+                offsetHeight: this.gridCanvas.offsetHeight,
+                style: this.gridCanvas.style.cssText
+            },
+            bodyClasses: document.body.className,
+            htmlClasses: document.documentElement.className
         });
 
         // 设置画布大小

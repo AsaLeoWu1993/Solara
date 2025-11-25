@@ -100,21 +100,32 @@ body {
 /* 科技感背景样式 */
 .tech-grid-canvas,
 .tech-lines-canvas {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
     pointer-events: none;
     z-index: -1;
 }
 
 .tech-grid-canvas {
-    opacity: 0.3;
+    opacity: 0.4;
 }
 
 .tech-lines-canvas {
-    opacity: 0.5;
+    opacity: 0.6;
     mix-blend-mode: screen;
+}
+
+/* 移动端禁用科技背景 */
+html:not(.desktop-view) .tech-grid-canvas,
+html:not(.desktop-view) .tech-lines-canvas {
+    display: none;
+}
+
+html:not(.desktop-view) .tech-overlay {
+    display: none;
 }
 
 /* 科技感装饰元素 */
