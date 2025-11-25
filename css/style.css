@@ -94,6 +94,345 @@ body {
     pointer-events: auto;
     cursor: crosshair;
     z-index: 1;
+    opacity: 0.7;
+}
+
+/* 科技感背景样式 */
+.tech-grid-canvas,
+.tech-lines-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.tech-grid-canvas {
+    opacity: 0.3;
+}
+
+.tech-lines-canvas {
+    opacity: 0.5;
+    mix-blend-mode: screen;
+}
+
+/* 科技感装饰元素 */
+.tech-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.tech-corner {
+    position: absolute;
+    width: 120px;
+    height: 120px;
+    border: 2px solid;
+    opacity: 0.6;
+    transition: all 0.3s ease;
+}
+
+.tech-corner--tl {
+    top: 20px;
+    left: 20px;
+    border-right: none;
+    border-bottom: none;
+    border-image: linear-gradient(135deg, var(--primary-color), transparent) 1;
+}
+
+.tech-corner--tr {
+    top: 20px;
+    right: 20px;
+    border-left: none;
+    border-bottom: none;
+    border-image: linear-gradient(225deg, var(--primary-color), transparent) 1;
+}
+
+.tech-corner--bl {
+    bottom: 20px;
+    left: 20px;
+    border-right: none;
+    border-top: none;
+    border-image: linear-gradient(45deg, var(--primary-color), transparent) 1;
+}
+
+.tech-corner--br {
+    bottom: 20px;
+    right: 20px;
+    border-left: none;
+    border-top: none;
+    border-image: linear-gradient(315deg, var(--primary-color), transparent) 1;
+}
+
+/* 科技感扫描线效果 */
+.tech-corner::before {
+    content: '';
+    position: absolute;
+    background: var(--primary-color);
+    opacity: 0.8;
+    animation: techScan 3s infinite linear;
+}
+
+.tech-corner--tl::before,
+.tech-corner--bl::before {
+    width: 2px;
+    height: 20px;
+    top: 100%;
+    left: 0;
+    animation: techScanVertical 3s infinite linear;
+}
+
+.tech-corner--tr::before,
+.tech-corner--br::before {
+    width: 2px;
+    height: 20px;
+    top: 100%;
+    right: 0;
+    animation: techScanVertical 3s infinite linear reverse;
+}
+
+.tech-corner--tl::after,
+.tech-corner--tr::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 2px;
+    background: var(--primary-color);
+    opacity: 0.8;
+    left: 100%;
+    top: 0;
+    animation: techScanHorizontal 3s infinite linear;
+}
+
+@keyframes techScanVertical {
+    0% {
+        transform: translateY(0);
+        opacity: 0;
+    }
+    50% {
+        opacity: 0.8;
+    }
+    100% {
+        transform: translateY(30px);
+        opacity: 0;
+    }
+}
+
+@keyframes techScanHorizontal {
+    0% {
+        transform: translateX(0);
+        opacity: 0;
+    }
+    50% {
+        opacity: 0.8;
+    }
+    100% {
+        transform: translateX(30px);
+        opacity: 0;
+    }
+}
+
+/* 桌面端专属科技感增强 */
+html.desktop-view .tech-corner {
+    width: 180px;
+    height: 180px;
+    border-width: 3px;
+    opacity: 0.9;
+    filter: drop-shadow(0 0 8px var(--primary-color));
+}
+
+html.desktop-view .tech-corner::before,
+html.desktop-view .tech-corner::after {
+    animation-duration: 2s;
+}
+
+html.desktop-view .tech-grid-canvas {
+    opacity: 0.4;
+}
+
+html.desktop-view .tech-lines-canvas {
+    opacity: 0.6;
+}
+
+html.desktop-view .particle-canvas {
+    opacity: 0.8;
+}
+
+/* 深色模式科技感优化 */
+body.dark-mode .tech-corner {
+    opacity: 1;
+    filter: drop-shadow(0 0 15px var(--primary-color)) drop-shadow(0 0 30px rgba(26, 188, 156, 0.5));
+}
+
+body.dark-mode .tech-grid-canvas {
+    opacity: 0.5;
+}
+
+body.dark-mode .tech-lines-canvas {
+    opacity: 0.8;
+    mix-blend-mode: screen;
+}
+
+body.dark-mode .particle-canvas {
+    opacity: 0.9;
+}
+
+/* 浅色模式科技感优化 */
+body:not(.dark-mode) .tech-corner {
+    opacity: 0.7;
+    filter: drop-shadow(0 0 5px var(--primary-color));
+}
+
+body:not(.dark-mode) .tech-grid-canvas {
+    opacity: 0.35;
+}
+
+body:not(.dark-mode) .tech-lines-canvas {
+    opacity: 0.5;
+}
+
+/* 科技感边框增强效果 */
+.tech-corner {
+    position: relative;
+    overflow: visible;
+}
+
+.tech-corner::after {
+    content: '';
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    right: -3px;
+    bottom: -3px;
+    background: linear-gradient(45deg, transparent, var(--primary-color), transparent);
+    opacity: 0;
+    animation: techBorderGlow 3s infinite;
+    pointer-events: none;
+}
+
+@keyframes techBorderGlow {
+    0%, 100% { opacity: 0; }
+    50% { opacity: 0.6; }
+}
+
+html.desktop-view .tech-corner::after {
+    animation-duration: 2s;
+    top: -5px;
+    left: -5px;
+    right: -5px;
+    bottom: -5px;
+}
+
+/* 桌面端容器科技感优化 */
+html.desktop-view .container {
+    box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.3),
+        0 0 0 1px rgba(26, 188, 156, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(26, 188, 156, 0.2);
+}
+
+html.desktop-view body.dark-mode .container {
+    box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.6),
+        0 0 0 1px rgba(26, 188, 156, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* 科技感脉冲点装饰 */
+.tech-corner::before {
+    content: '';
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background: var(--primary-color);
+    border-radius: 50%;
+    box-shadow:
+        0 0 10px var(--primary-color),
+        0 0 20px var(--primary-color);
+    animation: techCornerPulse 2s infinite;
+}
+
+.tech-corner--tl::before {
+    top: 0;
+    left: 0;
+    animation-delay: 0s;
+}
+
+.tech-corner--tr::before {
+    top: 0;
+    right: 0;
+    animation-delay: 0.5s;
+}
+
+.tech-corner--bl::before {
+    bottom: 0;
+    left: 0;
+    animation-delay: 1s;
+}
+
+.tech-corner--br::before {
+    bottom: 0;
+    right: 0;
+    animation-delay: 1.5s;
+}
+
+@keyframes techCornerPulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.3);
+        opacity: 0.6;
+    }
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .tech-corner {
+        width: 80px;
+        height: 80px;
+        border-width: 1px;
+    }
+
+    body:not(.dark-mode) .tech-corner {
+        opacity: 0.5;
+    }
+
+    body.dark-mode .tech-corner {
+        opacity: 0.7;
+        filter: drop-shadow(0 0 8px var(--primary-color));
+    }
+}
+
+/* 科技感脉冲效果 */
+.tech-pulse {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: var(--primary-color);
+    border-radius: 50%;
+    box-shadow: 0 0 10px var(--primary-color);
+    animation: techPulse 2s infinite;
+}
+
+@keyframes techPulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.5);
+        opacity: 0.5;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
 }
 
 .background-stage__layer {

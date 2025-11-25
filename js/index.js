@@ -2,6 +2,8 @@ const dom = {
     container: document.getElementById("mainContainer"),
     backgroundStage: document.getElementById("backgroundStage"),
     particleCanvas: document.getElementById("particleCanvas"),
+    techGridCanvas: document.getElementById("techGridCanvas"),
+    techLinesCanvas: document.getElementById("techLinesCanvas"),
     backgroundBaseLayer: document.getElementById("backgroundBaseLayer"),
     backgroundTransitionLayer: document.getElementById("backgroundTransitionLayer"),
     playlist: document.getElementById("playlist"),
@@ -6430,9 +6432,264 @@ function initCacheManagement() {
 // 初始化缓存管理
 initCacheManagement();
 
+// 科技感背景系统
+const TechBackground = {
+    gridCanvas: null,
+    gridCtx: null,
+    linesCanvas: null,
+    linesCtx: null,
+    particles: [],
+    animationId: null,
+    isDark: false,
+    isDesktop: false,
+
+    init() {
+        if (!dom.techGridCanvas || !dom.techLinesCanvas) return;
+
+        this.gridCanvas = dom.techGridCanvas;
+        this.linesCanvas = dom.techLinesCanvas;
+        this.gridCtx = this.gridCanvas.getContext('2d');
+        this.linesCtx = this.linesCanvas.getContext('2d');
+
+        this.isDark = document.body.classList.contains('dark-mode');
+        this.isDesktop = document.documentElement.classList.contains('desktop-view');
+
+        // 设置画布大小
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+
+        // 监听主题切换
+        const observer = new MutationObserver(() => {
+            this.isDark = document.body.classList.contains('dark-mode');
+            this.isDesktop = document.documentElement.classList.contains('desktop-view');
+        });
+        observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+        this.createParticles();
+        this.start();
+    },
+
+    resize() {
+        this.gridCanvas.width = window.innerWidth;
+        this.gridCanvas.height = window.innerHeight;
+        this.linesCanvas.width = window.innerWidth;
+        this.linesCanvas.height = window.innerHeight;
+    },
+
+    createParticles() {
+        this.particles = [];
+        const particleCount = this.isDesktop ? 150 : 80;
+
+        for (let i = 0; i < particleCount; i++) {
+            this.particles.push({
+                x: Math.random() * this.gridCanvas.width,
+                y: Math.random() * this.gridCanvas.height,
+                vx: (Math.random() - 0.5) * 0.5,
+                vy: (Math.random() - 0.5) * 0.5,
+                size: Math.random() * 2 + 0.5,
+                opacity: Math.random() * 0.5 + 0.3,
+                hue: Math.random() * 60 + 160 // 青色到绿色范围
+            });
+        }
+    },
+
+    start() {
+        this.animate();
+    },
+
+    drawGrid() {
+        const ctx = this.gridCtx;
+        const width = this.gridCanvas.width;
+        const height = this.gridCanvas.height;
+        const gridSize = this.isDesktop ? 40 : 30;
+
+        ctx.clearRect(0, 0, width, height);
+
+        // 设置网格颜色
+        const gridColor = this.isDark
+            ? `rgba(26, 188, 156, ${this.isDesktop ? 0.3 : 0.2})`
+            : `rgba(46, 204, 113, ${this.isDesktop ? 0.25 : 0.15})`;
+
+        ctx.strokeStyle = gridColor;
+        ctx.lineWidth = this.isDesktop ? 1 : 0.5;
+
+        // 绘制垂直线
+        for (let x = 0; x <= width; x += gridSize) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, height);
+            ctx.stroke();
+        }
+
+        // 绘制水平线
+        for (let y = 0; y <= height; y += gridSize) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(width, y);
+            ctx.stroke();
+        }
+
+        // 绘制交叉点
+        const dotSize = this.isDesktop ? 2 : 1;
+        ctx.fillStyle = gridColor;
+        for (let x = 0; x <= width; x += gridSize) {
+            for (let y = 0; y <= height; y += gridSize) {
+                ctx.beginPath();
+                ctx.arc(x, y, dotSize, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    },
+
+    drawParticles() {
+        const ctx = this.linesCtx;
+        const width = this.linesCanvas.width;
+        const height = this.linesCanvas.height;
+
+        ctx.clearRect(0, 0, width, height);
+
+        // 更新和绘制粒子
+        this.particles.forEach(particle => {
+            // 更新位置
+            particle.x += particle.vx;
+            particle.y += particle.vy;
+
+            // 边界反弹
+            if (particle.x < 0 || particle.x > width) particle.vx *= -1;
+            if (particle.y < 0 || particle.y > height) particle.vy *= -1;
+
+            // 确保粒子在边界内
+            particle.x = Math.max(0, Math.min(width, particle.x));
+            particle.y = Math.max(0, Math.min(height, particle.y));
+
+            // 绘制粒子光晕
+            const gradient = ctx.createRadialGradient(
+                particle.x, particle.y, 0,
+                particle.x, particle.y, particle.size * 3
+            );
+
+            if (this.isDark) {
+                gradient.addColorStop(0, `hsla(${particle.hue}, 70%, 60%, ${particle.opacity})`);
+                gradient.addColorStop(1, `hsla(${particle.hue}, 70%, 60%, 0)`);
+            } else {
+                gradient.addColorStop(0, `hsla(${particle.hue}, 80%, 50%, ${particle.opacity * 0.8})`);
+                gradient.addColorStop(1, `hsla(${particle.hue}, 80%, 50%, 0)`);
+            }
+
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(particle.x, particle.y, particle.size * 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 绘制粒子核心
+            ctx.fillStyle = this.isDark
+                ? `hsla(${particle.hue}, 70%, 70%, ${particle.opacity * 1.5})`
+                : `hsla(${particle.hue}, 80%, 60%, ${particle.opacity})`;
+            ctx.beginPath();
+            ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        // 连接临近粒子
+        const connectionDistance = this.isDesktop ? 120 : 80;
+        ctx.strokeStyle = this.isDark
+            ? 'rgba(26, 188, 156, 0.2)'
+            : 'rgba(46, 204, 113, 0.15)';
+        ctx.lineWidth = 0.5;
+
+        for (let i = 0; i < this.particles.length; i++) {
+            for (let j = i + 1; j < this.particles.length; j++) {
+                const dx = this.particles[i].x - this.particles[j].x;
+                const dy = this.particles[i].y - this.particles[j].y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < connectionDistance) {
+                    const opacity = (1 - distance / connectionDistance) * 0.5;
+                    ctx.strokeStyle = this.isDark
+                        ? `rgba(26, 188, 156, ${opacity * 0.3})`
+                        : `rgba(46, 204, 113, ${opacity * 0.25})`;
+
+                    ctx.beginPath();
+                    ctx.moveTo(this.particles[i].x, this.particles[i].y);
+                    ctx.lineTo(this.particles[j].x, this.particles[j].y);
+                    ctx.stroke();
+                }
+            }
+        }
+    },
+
+    drawTechLines() {
+        const ctx = this.linesCtx;
+        const width = this.linesCanvas.width;
+        const height = this.linesCanvas.height;
+        const time = Date.now() * 0.001;
+
+        // 绘制流动的线条
+        const lineCount = this.isDesktop ? 8 : 5;
+        const baseColor = this.isDark ? [26, 188, 156] : [46, 204, 113];
+
+        for (let i = 0; i < lineCount; i++) {
+            const offset = (i / lineCount) * Math.PI * 2;
+            const x = (Math.sin(time + offset) + 1) * width * 0.5;
+            const y = ((Math.cos(time * 0.7 + offset) + 1) * height * 0.5);
+
+            const gradient = ctx.createLinearGradient(x - 50, y - 50, x + 50, y + 50);
+            gradient.addColorStop(0, `rgba(${baseColor[0]}, ${baseColor[1]}, ${baseColor[2]}, 0)`);
+            gradient.addColorStop(0.5, `rgba(${baseColor[0]}, ${baseColor[1]}, ${baseColor[2]}, 0.6)`);
+            gradient.addColorStop(1, `rgba(${baseColor[0]}, ${baseColor[1]}, ${baseColor[2]}, 0)`);
+
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = this.isDesktop ? 2 : 1.5;
+            ctx.lineCap = 'round';
+
+            // 绘制曲线
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+
+            const controlX = x + Math.sin(time + offset * 2) * 100;
+            const controlY = y + Math.cos(time + offset * 2) * 100;
+            const endX = x + Math.sin(time + offset * 3) * 200;
+            const endY = y + Math.cos(time + offset * 3) * 200;
+
+            ctx.quadraticCurveTo(controlX, controlY, endX, endY);
+            ctx.stroke();
+
+            // 绘制端点光晕
+            const endGradient = ctx.createRadialGradient(endX, endY, 0, endX, endY, 10);
+            endGradient.addColorStop(0, `rgba(${baseColor[0]}, ${baseColor[1]}, ${baseColor[2]}, 0.8)`);
+            endGradient.addColorStop(1, `rgba(${baseColor[0]}, ${baseColor[1]}, ${baseColor[2]}, 0)`);
+
+            ctx.fillStyle = endGradient;
+            ctx.beginPath();
+            ctx.arc(endX, endY, 10, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    },
+
+    animate() {
+        this.animationId = requestAnimationFrame(() => this.animate());
+
+        this.drawGrid();
+        this.drawParticles();
+        this.drawTechLines();
+    },
+
+    stop() {
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+            this.animationId = null;
+        }
+    }
+};
+
 // 初始化粒子系统
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => ParticleSystem.init());
+    document.addEventListener('DOMContentLoaded', () => {
+        ParticleSystem.init();
+        TechBackground.init();
+    });
 } else {
     ParticleSystem.init();
+    TechBackground.init();
 }

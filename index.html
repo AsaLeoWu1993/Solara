@@ -109,8 +109,16 @@
 <body>
     <div class="background-stage" id="backgroundStage" aria-hidden="true">
         <canvas id="particleCanvas" class="particle-canvas"></canvas>
+        <canvas id="techGridCanvas" class="tech-grid-canvas"></canvas>
+        <canvas id="techLinesCanvas" class="tech-lines-canvas"></canvas>
         <div class="background-stage__layer background-stage__layer--base" id="backgroundBaseLayer"></div>
         <div class="background-stage__layer background-stage__layer--transition" id="backgroundTransitionLayer"></div>
+        <div class="tech-overlay">
+            <div class="tech-corner tech-corner--tl"></div>
+            <div class="tech-corner tech-corner--tr"></div>
+            <div class="tech-corner tech-corner--bl"></div>
+            <div class="tech-corner tech-corner--br"></div>
+        </div>
     </div>
     <div class="container" id="mainContainer">
         <div class="mobile-toolbar" id="mobileToolbar" role="toolbar">
