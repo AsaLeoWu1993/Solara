@@ -70,6 +70,9 @@ const dom = {
     mobileExploreButton: document.getElementById("mobileExploreButton"),
     mobileQualityToggle: document.getElementById("mobileQualityToggle"),
     mobileQualityLabel: document.getElementById("mobileQualityLabel"),
+    mobileLiveLyrics: document.getElementById("mobileLiveLyrics"),
+    mobileLyricsCurrent: document.getElementById("mobileLyricsCurrent"),
+    mobileLyricsNext: document.getElementById("mobileLyricsNext"),
     mobilePanel: document.getElementById("mobilePanel"),
     mobileQueueToggle: document.getElementById("mobileQueueToggle"),
     shuffleToggleBtn: document.getElementById("shuffleToggleBtn"),
@@ -5767,6 +5770,14 @@ function clearLyricsContent() {
     setLyricsContentHtml("");
     state.lyricsData = [];
     state.currentLyricLine = -1;
+
+    // 清空手机端歌词显示
+    if (dom.mobileLyricsCurrent && dom.mobileLyricsNext) {
+        dom.mobileLyricsCurrent.textContent = '';
+        dom.mobileLyricsNext.textContent = '';
+        dom.mobileLiveLyrics.setAttribute('aria-hidden', 'true');
+    }
+
     if (isMobileView) {
         closeMobileInlineLyrics({ force: true });
     }
@@ -5848,6 +5859,27 @@ function performLyricsSync(currentTime) {
 
     if (needsUpdate) {
         state.currentLyricLine = currentLineIndex;
+
+        // 更新手机端两行歌词显示
+        if (dom.mobileLyricsCurrent && dom.mobileLyricsNext && isMobileView) {
+            const currentLyric = state.lyricsData[currentLineIndex];
+            const nextLyric = state.lyricsData[currentLineIndex + 1];
+
+            if (currentLyric) {
+                dom.mobileLyricsCurrent.textContent = currentLyric.text || '';
+                dom.mobileLiveLyrics.setAttribute('aria-hidden', 'false');
+            } else {
+                dom.mobileLyricsCurrent.textContent = '';
+                dom.mobileLyricsNext.textContent = '';
+                dom.mobileLiveLyrics.setAttribute('aria-hidden', 'true');
+            }
+
+            if (nextLyric) {
+                dom.mobileLyricsNext.textContent = nextLyric.text || '';
+            } else {
+                dom.mobileLyricsNext.textContent = '';
+            }
+        }
 
         const lyricTargets = [];
         if (dom.lyricsContent) {
@@ -6625,40 +6657,7 @@ const TechBackground = {
     isDesktop: false,
 
     init() {
-        console.log('TechBackground: 开始初始化...')
-        console.log('TechBackground: 桌面端检测', {
-            userAgent: navigator.userAgent,
-            htmlClasses: document.documentElement.className,
-            bodyClasses: document.body.className,
-            hasDesktopView: document.documentElement.classList.contains('desktop-view'),
-            hasMobileView: document.documentElement.classList.contains('mobile-view'),
-            windowWidth: window.innerWidth,
-            isMobileUA: /android|iphone|ipad|ipod|mobile|blackberry|phone|opera mini|windows phone/i.test(navigator.userAgent),
-            isSmallScreen: typeof window.matchMedia === "function" && window.matchMedia("(max-width: 820px)").matches
-        })
-
-        console.log('TechBackground: DOM元素检查', {
-            techGridCanvas: !!dom.techGridCanvas,
-            techLinesCanvas: !!dom.techLinesCanvas,
-            gridCanvasElement: dom.techGridCanvas,
-            linesCanvasElement: dom.techLinesCanvas,
-            gridCanvasDisplay: window.getComputedStyle(dom.techGridCanvas).display,
-            linesCanvasDisplay: window.getComputedStyle(dom.techLinesCanvas).display,
-            gridCanvasZIndex: window.getComputedStyle(dom.techGridCanvas).zIndex,
-            linesCanvasZIndex: window.getComputedStyle(dom.techLinesCanvas).zIndex
-        })
-
         if (!dom.techGridCanvas || !dom.techLinesCanvas) {
-            console.error('TechBackground: Canvas elements not found');
-            console.error('TechBackground: Available DOM elements:', {
-                techGridCanvas: dom.techGridCanvas,
-                techLinesCanvas: dom.techLinesCanvas,
-                bodyChildren: Array.from(document.body.children).map(el => ({
-                    tagName: el.tagName,
-                    className: el.className,
-                    id: el.id
-                }))
-            })
             return;
         }
 
@@ -6668,27 +6667,11 @@ const TechBackground = {
         this.linesCtx = this.linesCanvas.getContext('2d');
 
         if (!this.gridCtx || !this.linesCtx) {
-            console.error('TechBackground: Failed to get 2D context');
             return;
         }
 
         this.isDark = document.body.classList.contains('dark-mode');
         this.isDesktop = document.documentElement.classList.contains('desktop-view');
-
-        console.log('TechBackground: 初始化成功', {
-            isDark: this.isDark,
-            isDesktop: this.isDesktop,
-            gridCanvasSize: `${this.gridCanvas.width}x${this.gridCanvas.height}`,
-            gridCanvasPosition: {
-                offsetLeft: this.gridCanvas.offsetLeft,
-                offsetTop: this.gridCanvas.offsetTop,
-                offsetWidth: this.gridCanvas.offsetWidth,
-                offsetHeight: this.gridCanvas.offsetHeight,
-                style: this.gridCanvas.style.cssText
-            },
-            bodyClasses: document.body.className,
-            htmlClasses: document.documentElement.className
-        });
 
         // 设置画布大小
         this.resize();
@@ -6698,7 +6681,6 @@ const TechBackground = {
         const observer = new MutationObserver(() => {
             this.isDark = document.body.classList.contains('dark-mode');
             this.isDesktop = document.documentElement.classList.contains('desktop-view');
-            console.log('TechBackground: 主题变化', { isDark: this.isDark, isDesktop: this.isDesktop });
         });
         observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
         observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
@@ -6921,18 +6903,6 @@ const TechBackground = {
         this.drawGrid();
         this.drawParticles();
         this.drawTechLines();
-
-        // 调试：每120帧输出一次状态
-        if (!this.frameCount) this.frameCount = 0;
-        this.frameCount++;
-        if (this.frameCount % 120 === 0) {
-            console.log('TechBackground: 动画运行中', {
-                particles: this.particles.length,
-                isDark: this.isDark,
-                isDesktop: this.isDesktop,
-                gridSize: `${this.gridCanvas.width}x${this.gridCanvas.height}`
-            });
-        }
     },
 
     stop() {
@@ -6946,21 +6916,10 @@ const TechBackground = {
 // 初始化粒子系统
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-        console.log('页面加载完成，开始初始化背景系统');
         ParticleSystem.init();
         TechBackground.init();
-
-        // 测试Canvas初始化
-        setTimeout(() => {
-            console.log('Canvas元素状态检查:', {
-                particleCanvas: !!dom.particleCanvas,
-                techGridCanvas: !!dom.techGridCanvas,
-                techLinesCanvas: !!dom.techLinesCanvas
-            });
-        }, 1000);
     });
 } else {
-    console.log('页面已加载，直接初始化背景系统');
     ParticleSystem.init();
     TechBackground.init();
 }
