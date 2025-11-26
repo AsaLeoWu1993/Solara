@@ -298,6 +298,7 @@ html.desktop-view .album-cover {
     top: 50%;
     left: 50%;
     width: 65%;
+    height: 65%;
     aspect-ratio: 1 / 1;
     transform: translate(-50%, -50%);
     border-radius: 50%;

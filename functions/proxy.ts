@@ -1,6 +1,4 @@
 const API_BASE_URLS = [
-  "https://api.injahow.cn/meting/",
-  "https://api.i-meto.com/meting/",
   "https://music-api.gdstudio.xyz/api.php"
 ];
 const KUWO_HOST_PATTERN = /(^|\.)kuwo\.cn$/i;
