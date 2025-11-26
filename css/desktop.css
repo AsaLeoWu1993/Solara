@@ -157,6 +157,165 @@ html.desktop-view .album-cover img {
     border-radius: 50%;
 }
 
+/* Desktop-only overrides for mobile UI chrome */
+html.desktop-view .mobile-status-bar,
+html.desktop-view .mobile-toolbar,
+html.desktop-view .mobile-panel-header,
+html.desktop-view .mobile-overlay-scrim,
+html.desktop-view .mobile-quality-chip,
+html.desktop-view .mobile-close-btn,
+html.desktop-view .mobile-turntable__tonearm,
+html.desktop-view .mobile-turntable__label,
+html.desktop-view .mobile-inline-lyrics {
+    display: none;
+}
+
+/* Remove circular decoration from playlist action buttons on desktop */
+html.desktop-view .playlist-action-btn {
+    width: auto;
+    height: auto;
+    padding: 6px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    box-shadow: none;
+    color: var(--text-secondary-color);
+    transition: color 0.2s ease;
+}
+
+html.desktop-view body.dark-mode .playlist-action-btn {
+    background: none;
+    border: none;
+    box-shadow: none;
+    color: var(--text-secondary-color);
+}
+
+html.desktop-view .playlist-action-btn:hover:not(:disabled),
+html.desktop-view .playlist-action-btn:focus-visible:not(:disabled) {
+    transform: none;
+    box-shadow: none;
+    filter: none;
+    border: none;
+    color: var(--primary-color);
+}
+
+html.desktop-view .playlist-action-btn--clear {
+    color: rgba(231, 76, 60, 0.85);
+}
+
+html.desktop-view .playlist-action-btn--clear:hover:not(:disabled),
+html.desktop-view .playlist-action-btn--clear:focus-visible:not(:disabled) {
+    color: var(--warning-color);
+}
+
+html.desktop-view .playlist-action-btn:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+html.desktop-view .playlist-action-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* Keep the desktop search import button visible without an opaque bar */
+html.desktop-view .search-results {
+    gap: 0;
+}
+
+html.desktop-view .search-results-toolbar {
+    display: block;
+    padding: 0;
+    height: 0;
+    overflow: visible;
+    pointer-events: none;
+}
+
+html.desktop-view .search-results-toolbar .import-selected-btn {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    pointer-events: auto;
+}
+
+html.desktop-view .search-results-list {
+    padding-top: 60px;
+}
+
+/* Desktop: Circular album cover with surrounding spectrum */
+html.desktop-view .mobile-turntable {
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+    aspect-ratio: 1 / 1;
+    margin: 0 auto 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+html.desktop-view .mobile-turntable__platter {
+    width: 60%;
+    height: 60%;
+    border-radius: 50%;
+    background: radial-gradient(circle at 48% 50%, #1a1d25 0%, #05070c 65%, #000 100%);
+    box-shadow: 0 32px 70px rgba(0, 0, 0, 0.55);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    animation: desktop-vinyl-spin 18s linear infinite;
+    animation-play-state: paused;
+    z-index: 2;
+}
+
+html.desktop-view.is-playing .mobile-turntable__platter {
+    animation-play-state: running;
+}
+
+@keyframes desktop-vinyl-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+html.desktop-view .mobile-turntable__platter::before {
+    content: "";
+    position: absolute;
+    inset: 6%;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.05) 10%, transparent 45%),
+        conic-gradient(from 90deg, rgba(255, 255, 255, 0.12) 0deg, transparent 45deg, transparent 180deg, rgba(255, 255, 255, 0.08) 225deg, transparent 360deg),
+        radial-gradient(circle at 48% 45%, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 35%, transparent 60%);
+    opacity: 0.35;
+    pointer-events: none;
+}
+
+html.desktop-view .album-cover {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 65%;
+    aspect-ratio: 1 / 1;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    overflow: hidden;
+    box-shadow:
+        inset 0 0 0 3px rgba(0, 0, 0, 0.55),
+        0 18px 38px rgba(0, 0, 0, 0.45);
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 3;
+}
+
+html.desktop-view .album-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
 html.desktop-view .album-cover .placeholder {
     font-size: clamp(36px, 8vw, 64px);
     color: rgba(255, 255, 255, 0.9);
@@ -172,4 +331,107 @@ html.desktop-view #spectrumCanvas {
     pointer-events: none;
     z-index: 1;
     opacity: 0.9;
+}
+
+/* Tech Background Styles */
+html.desktop-view .background-stage {
+    background: radial-gradient(circle at center, #1a1c29 0%, #0d1016 100%);
+    perspective: 1000px;
+}
+
+html.desktop-view .tech-grid-canvas,
+html.desktop-view .tech-lines-canvas,
+html.desktop-view .particle-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+html.desktop-view .tech-grid-canvas {
+    opacity: 0.15;
+    z-index: 0;
+}
+
+html.desktop-view .tech-lines-canvas {
+    opacity: 0.3;
+    z-index: 1;
+}
+
+html.desktop-view .particle-canvas {
+    opacity: 0.6;
+    z-index: 2;
+}
+
+html.desktop-view .tech-overlay {
+    position: absolute;
+    inset: 20px;
+    pointer-events: none;
+    z-index: 10;
+    border: 1px solid rgba(26, 188, 156, 0.1);
+    box-shadow: 0 0 50px rgba(26, 188, 156, 0.05) inset;
+}
+
+html.desktop-view .tech-corner {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    border: 2px solid var(--primary-color);
+    transition: all 0.3s ease;
+    opacity: 0.6;
+}
+
+html.desktop-view .tech-corner--tl {
+    top: -2px;
+    left: -2px;
+    border-right: none;
+    border-bottom: none;
+}
+
+html.desktop-view .tech-corner--tr {
+    top: -2px;
+    right: -2px;
+    border-left: none;
+    border-bottom: none;
+}
+
+html.desktop-view .tech-corner--bl {
+    bottom: -2px;
+    left: -2px;
+    border-right: none;
+    border-top: none;
+}
+
+html.desktop-view .tech-corner--br {
+    bottom: -2px;
+    right: -2px;
+    border-left: none;
+    border-top: none;
+}
+
+/* Add a scanning line effect */
+html.desktop-view .tech-overlay::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to bottom, transparent 50%, rgba(26, 188, 156, 0.05) 51%, transparent 52%);
+    background-size: 100% 8px;
+    pointer-events: none;
+    animation: scanline 10s linear infinite;
+    opacity: 0.3;
+}
+
+@keyframes scanline {
+    0% {
+        background-position: 0 0;
+    }
+
+    100% {
+        background-position: 0 100%;
+    }
 }
