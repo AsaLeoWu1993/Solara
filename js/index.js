@@ -6148,12 +6148,12 @@ const Visualizer = {
 
         // Check if mobile or desktop for different line lengths
         const isMobile = window.innerWidth <= 768;
-        const lengthMultiplier = isMobile ? 0.5 : 0.8; // PC版加长线条
+        const lengthMultiplier = isMobile ? 0.5 : 1.0; // PC版加长线条以围绕圆形专辑
 
         ctx.clearRect(0, 0, width, height);
 
         ctx.beginPath();
-        const bars = 120; // Number of bars
+        const bars = 180; // 增加频谱条数量，使效果更密集
         const step = Math.PI * 2 / bars;
 
         for (let i = 0; i < bars; i++) {
@@ -6213,7 +6213,7 @@ const ParticleSystem = {
     clickEffect: [],
 
     // 粒子类
-    Particle: function(x, y, type = 'stars') {
+    Particle: function (x, y, type = 'stars') {
         this.x = x;
         this.y = y;
         this.type = type;
@@ -6389,11 +6389,11 @@ const ParticleSystem = {
         switch (particle.type) {
             case 'stars':
                 this.drawStar(particle.x, particle.y, particle.size,
-                            0.5 + Math.sin(particle.twinkle) * 0.5, alpha);
+                    0.5 + Math.sin(particle.twinkle) * 0.5, alpha);
                 break;
             case 'bubbles':
                 this.drawBubble(particle.x, particle.y, particle.size,
-                               Math.sin(particle.wobble) * 0.2 + 0.3, alpha);
+                    Math.sin(particle.wobble) * 0.2 + 0.3, alpha);
                 break;
             case 'fireflies':
                 this.drawFirefly(particle.x, particle.y, particle.size, particle.glow, alpha);
@@ -6516,7 +6516,7 @@ const ParticleSystem = {
 };
 
 // 粒子类扩展方法
-ParticleSystem.Particle.prototype.reset = function() {
+ParticleSystem.Particle.prototype.reset = function () {
     this.type = this.type || 'stars';
     this.speed = Math.random() * 2 + 1;
     this.size = Math.random() * 3 + 1;

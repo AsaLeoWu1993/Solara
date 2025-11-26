@@ -82,3 +82,94 @@ html.desktop-view .search-results-toolbar .import-selected-btn {
 html.desktop-view .search-results-list {
     padding-top: 60px;
 }
+
+/* Desktop: Circular album cover with surrounding spectrum */
+html.desktop-view .mobile-turntable {
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+    aspect-ratio: 1 / 1;
+    margin: 0 auto 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+html.desktop-view .mobile-turntable__platter {
+    width: 60%;
+    height: 60%;
+    border-radius: 50%;
+    background: radial-gradient(circle at 48% 50%, #1a1d25 0%, #05070c 65%, #000 100%);
+    box-shadow: 0 32px 70px rgba(0, 0, 0, 0.55);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    animation: desktop-vinyl-spin 18s linear infinite;
+    animation-play-state: paused;
+    z-index: 2;
+}
+
+html.desktop-view.is-playing .mobile-turntable__platter {
+    animation-play-state: running;
+}
+
+@keyframes desktop-vinyl-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+html.desktop-view .mobile-turntable__platter::before {
+    content: "";
+    position: absolute;
+    inset: 6%;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.05) 10%, transparent 45%),
+        conic-gradient(from 90deg, rgba(255, 255, 255, 0.12) 0deg, transparent 45deg, transparent 180deg, rgba(255, 255, 255, 0.08) 225deg, transparent 360deg),
+        radial-gradient(circle at 48% 45%, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 35%, transparent 60%);
+    opacity: 0.35;
+    pointer-events: none;
+}
+
+html.desktop-view .album-cover {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 65%;
+    aspect-ratio: 1 / 1;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    overflow: hidden;
+    box-shadow:
+        inset 0 0 0 3px rgba(0, 0, 0, 0.55),
+        0 18px 38px rgba(0, 0, 0, 0.45);
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 3;
+}
+
+html.desktop-view .album-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+html.desktop-view .album-cover .placeholder {
+    font-size: clamp(36px, 8vw, 64px);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+html.desktop-view #spectrumCanvas {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.9;
+}
