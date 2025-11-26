@@ -38,6 +38,7 @@ body.mobile-view .background-stage {
 }
 
 @media screen and (orientation: portrait) {
+
     html.mobile-view,
     body.mobile-view {
         background: #06070d;
@@ -52,18 +53,14 @@ body.mobile-view .background-stage {
     body.mobile-view .background-stage {
         display: block;
         z-index: -4;
-        -webkit-mask-image: radial-gradient(
-            circle at 50% calc(50% + var(--mobile-ring-vertical-shift)),
-            transparent calc(var(--mobile-ring-inner-radius)),
-            rgba(0, 0, 0, 0.92) calc(var(--mobile-ring-inner-radius) + var(--mobile-ring-feather)),
-            rgba(0, 0, 0, 1) 100%
-        );
-        mask-image: radial-gradient(
-            circle at 50% calc(50% + var(--mobile-ring-vertical-shift)),
-            transparent calc(var(--mobile-ring-inner-radius)),
-            rgba(0, 0, 0, 0.92) calc(var(--mobile-ring-inner-radius) + var(--mobile-ring-feather)),
-            rgba(0, 0, 0, 1) 100%
-        );
+        -webkit-mask-image: radial-gradient(circle at 50% calc(50% + var(--mobile-ring-vertical-shift)),
+                transparent calc(var(--mobile-ring-inner-radius)),
+                rgba(0, 0, 0, 0.92) calc(var(--mobile-ring-inner-radius) + var(--mobile-ring-feather)),
+                rgba(0, 0, 0, 1) 100%);
+        mask-image: radial-gradient(circle at 50% calc(50% + var(--mobile-ring-vertical-shift)),
+                transparent calc(var(--mobile-ring-inner-radius)),
+                rgba(0, 0, 0, 0.92) calc(var(--mobile-ring-inner-radius) + var(--mobile-ring-feather)),
+                rgba(0, 0, 0, 1) 100%);
         -webkit-mask-repeat: no-repeat;
         mask-repeat: no-repeat;
         -webkit-mask-size: cover;
@@ -297,7 +294,7 @@ body.mobile-view .mobile-inline-lyrics__content {
     width: 100%;
 }
 
-body.mobile-view .mobile-inline-lyrics__content > div {
+body.mobile-view .mobile-inline-lyrics__content>div {
     text-align: center;
     font-size: clamp(0.8rem, 3.5vw, 0.95rem);
     line-height: 1.6;
@@ -325,7 +322,8 @@ body.mobile-view .mobile-inline-lyrics__content .current span {
     transition: opacity 0.15s ease-out, transform 0.15s ease-out;
     opacity: 0.3;
     transform: scale(0.98);
-    will-change: opacity, transform; /* GPU加速 */
+    will-change: opacity, transform;
+    /* GPU加速 */
 }
 
 
@@ -366,6 +364,7 @@ body.mobile-view .current-song-info {
     flex-direction: column;
     gap: 6px;
     flex: 0 0 auto;
+    margin-top: 16px;
 }
 
 body.mobile-view .current-song-title {
@@ -386,7 +385,7 @@ body.mobile-view .mobile-live-lyrics {
     align-items: center;
     justify-content: center;
     gap: 6px;
-    margin-top: 8px;
+    margin-top: 16px;
     min-height: 44px;
     max-height: 88px;
     padding: 8px 12px;
@@ -425,6 +424,11 @@ body.mobile-view .mobile-live-lyrics__line.next {
     transform: scale(0.92);
 }
 
+/* Hide mobile-live-lyrics when showing full inline lyrics */
+body.mobile-view.mobile-inline-lyrics-open .mobile-live-lyrics {
+    display: none;
+}
+
 body.mobile-view .mobile-quality-chip {
     display: inline-flex;
     align-items: center;
@@ -438,7 +442,7 @@ body.mobile-view .mobile-quality-chip {
     font-size: 0.85rem;
     font-weight: 500;
     letter-spacing: 0.04em;
-    margin: 8px auto 0;
+    margin: 12px auto 0;
     cursor: pointer;
     transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease, transform 0.2s ease;
     flex: 0 0 auto;
@@ -502,10 +506,10 @@ body.mobile-view .progress-container input[type="range"] {
     height: 4px;
     border-radius: 999px;
     background: linear-gradient(to right,
-        rgba(243, 162, 91, 0.95) 0%,
-        rgba(243, 162, 91, 0.95) var(--progress, 0%),
-        rgba(255, 255, 255, 0.15) var(--progress, 0%),
-        rgba(255, 255, 255, 0.15) 100%);
+            rgba(243, 162, 91, 0.95) 0%,
+            rgba(243, 162, 91, 0.95) var(--progress, 0%),
+            rgba(255, 255, 255, 0.15) var(--progress, 0%),
+            rgba(255, 255, 255, 0.15) 100%);
 }
 
 body.mobile-view .progress-container span {
@@ -920,22 +924,22 @@ body.mobile-view .search-results-list {
     margin: 0 auto;
 }
 
-body.mobile-view .search-area > :not(.mobile-close-btn) {
+body.mobile-view .search-area> :not(.mobile-close-btn) {
     width: min(100%, 360px);
     align-self: center;
 }
 
-body.mobile-view .search-area > :not(.mobile-close-btn) {
+body.mobile-view .search-area> :not(.mobile-close-btn) {
     width: min(100%, 340px);
     align-self: center;
 }
 
-body.mobile-view .search-area > :not(.mobile-close-btn) {
+body.mobile-view .search-area> :not(.mobile-close-btn) {
     width: min(100%, 340px);
     align-self: center;
 }
 
-body.mobile-view .search-area > :not(.mobile-close-btn) {
+body.mobile-view .search-area> :not(.mobile-close-btn) {
     width: min(100%, 340px);
     align-self: center;
 }
