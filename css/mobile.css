@@ -219,7 +219,7 @@ body.mobile-view .album-cover {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 58%;
+    width: 100%;
     aspect-ratio: 1 / 1;
     transform: translate(-50%, -50%);
     border-radius: 50%;

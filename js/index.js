@@ -6148,7 +6148,7 @@ const Visualizer = {
 
         // Check if mobile or desktop for different line lengths
         const isMobile = window.innerWidth <= 768;
-        const lengthMultiplier = isMobile ? 0.5 : 1.0; // PC版加长线条以围绕圆形专辑
+        const lengthMultiplier = isMobile ? 0.5 : 0.7; // PC版线条长度，0.7使线条不会超出太多
 
         ctx.clearRect(0, 0, width, height);
 
