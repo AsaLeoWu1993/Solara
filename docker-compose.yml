@@ -1,26 +1,32 @@
 services:
-  api:
-    build:
-      context: ./functions
-      dockerfile: Dockerfile
-    container_name: solara-api
-    environment:
-      APITOKEN: "请替换成高强度随机token"
-    expose:
-      - "8080"
+  solara:
+    image: 10.10.10.4:5000/solara:latest
+    container_name: solara
     restart: unless-stopped
-
-  web:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: solara-web
-    depends_on:
-      - api
+    # depends_on:
+    #   - solara-api
     environment:
-      SOLARA_API_BASE_URL: "/proxy"
-      SOLARA_INTERNAL_API_URL: "http://api:8080"
-      SOLARA_PROXY_TOKEN: "请替换成与APITOKEN相同的token"
+      - TZ=Asia/Shanghai
+      - SOLARA_API_BASE_URL=http://solara-api.asadalao.cn/proxy
+      - SOLARA_INTERNAL_API_URL=http://solara-api:8080
+      - SOLARA_PROXY_TOKEN=xfjsod1845vuiwanr7lhcykzb60g239eptmq0v7gpu5mj9vw
+      - SOLARA_CACHE_TTL=30
     ports:
-      - "8088:80"
-    restart: unless-stopped
+      - 9307:80
+    networks:
+      - 1panel-network
+  # solara-api:
+  #   image: 10.10.10.4:5000/solara-api:latest
+  #   container_name: solara-api
+  #   restart: unless-stopped
+  #   environment:
+  #     - APITOKEN=123456
+  #     - http_proxy=http://172.17.0.1:7890
+  #     - https_proxy=http://172.17.0.1:7890
+  #   ports:
+  #     - 9308:8080
+  #   networks:
+  #     - 1panel-network
+networks:
+  1panel-network:
+    external: true
