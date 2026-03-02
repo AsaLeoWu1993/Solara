@@ -48,7 +48,7 @@
 - **Docker 推荐安全模式（前端不暴露 token）**：
 	- `web` 服务通过 Nginx 转发 `/proxy` 到内部 `api` 服务；
 	- Nginx 在服务端自动注入 `X-API-Token`；
-	- 浏览器侧不需要配置 token（`SOLARA_API_TOKEN` 保持空）。
+	- 浏览器侧不需要配置 token。
 
 ### Docker Compose（推荐）
 - 项目根目录已提供 `docker-compose.yml` 示例。

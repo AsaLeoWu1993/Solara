@@ -9,16 +9,12 @@ DEFAULT_INTERNAL_API_URL="http://api:8080"
 # 设置默认缓存时间 (7天，单位：天)
 DEFAULT_CACHE_TTL_DAYS="7"
 
-# 设置默认API Token（客户端不默认）
-DEFAULT_API_TOKEN=""
-
 # 设置默认代理Token（服务端注入）
 DEFAULT_PROXY_TOKEN=""
 
 # 使用环境变量或默认值
 API_BASE_URL=${SOLARA_API_BASE_URL:-$DEFAULT_API_BASE_URL}
 CACHE_TTL_DAYS=${SOLARA_CACHE_TTL:-$DEFAULT_CACHE_TTL_DAYS}
-API_TOKEN=${SOLARA_API_TOKEN:-$DEFAULT_API_TOKEN}
 INTERNAL_API_URL=${SOLARA_INTERNAL_API_URL:-$DEFAULT_INTERNAL_API_URL}
 PROXY_TOKEN=${SOLARA_PROXY_TOKEN:-$DEFAULT_PROXY_TOKEN}
 
@@ -43,16 +39,19 @@ escape_sed_replacement() {
 	printf '%s' "$1" | sed -e 's/[|&]/\\&/g'
 }
 
-ESCAPED_API_BASE_URL=$(escape_sed_replacement "$API_BASE_URL")
+escape_js_string() {
+	printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
+}
+
+JS_SAFE_API_BASE_URL=$(escape_js_string "$API_BASE_URL")
+ESCAPED_API_BASE_URL=$(escape_sed_replacement "$JS_SAFE_API_BASE_URL")
 ESCAPED_CACHE_TTL_MS=$(escape_sed_replacement "$CACHE_TTL_MS")
-ESCAPED_API_TOKEN=$(escape_sed_replacement "$API_TOKEN")
 ESCAPED_INTERNAL_API_URL=$(escape_sed_replacement "$INTERNAL_API_URL")
 ESCAPED_PROXY_TOKEN=$(escape_sed_replacement "$PROXY_TOKEN")
 
 # 替换 index.html 中的占位符
 sed -i "s|__SOLARA_API_BASE_URL__|$ESCAPED_API_BASE_URL|g" /usr/share/nginx/html/js/index.js
 sed -i "s|__SOLARA_CACHE_TTL__|$ESCAPED_CACHE_TTL_MS|g" /usr/share/nginx/html/js/index.js
-sed -i "s|__SOLARA_API_TOKEN__|$ESCAPED_API_TOKEN|g" /usr/share/nginx/html/js/index.js
 
 # 替换 Nginx 配置占位符
 sed -i "s|__SOLARA_INTERNAL_API_URL__|$ESCAPED_INTERNAL_API_URL|g" /etc/nginx/conf.d/default.conf

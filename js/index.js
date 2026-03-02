@@ -447,12 +447,11 @@ function toAbsoluteUrl(url) {
 
 const API_TOKEN_STORAGE_KEY = "solaraApiToken";
 
-function resolveClientApiToken() {
-    const configuredToken = "__SOLARA_API_TOKEN__";
-    if (configuredToken && configuredToken !== "__SOLARA_API_TOKEN__") {
-        return configuredToken.trim();
-    }
+function isSolaraPlaceholder(value) {
+    return typeof value === "string" && /^__SOLARA_[A-Z0-9_]+__$/.test(value);
+}
 
+function resolveClientApiToken() {
     const runtimeToken = typeof window.__SOLARA_API_TOKEN__ === "string"
         ? window.__SOLARA_API_TOKEN__.trim()
         : "";
@@ -481,7 +480,7 @@ function appendApiTokenToUrl(url, token) {
 
 function resolveApiBaseUrl() {
     const configured = "__SOLARA_API_BASE_URL__";
-    return configured && configured !== "__SOLARA_API_BASE_URL__" ? configured : "/proxy";
+    return configured && !isSolaraPlaceholder(configured) ? configured : "/proxy";
 }
 
 function buildAudioProxyUrl(url) {
