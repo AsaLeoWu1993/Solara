@@ -445,6 +445,45 @@ function toAbsoluteUrl(url) {
     }
 }
 
+const API_TOKEN_STORAGE_KEY = "solaraApiToken";
+
+function resolveClientApiToken() {
+    const configuredToken = "__SOLARA_API_TOKEN__";
+    if (configuredToken && configuredToken !== "__SOLARA_API_TOKEN__") {
+        return configuredToken.trim();
+    }
+
+    const runtimeToken = typeof window.__SOLARA_API_TOKEN__ === "string"
+        ? window.__SOLARA_API_TOKEN__.trim()
+        : "";
+
+    if (runtimeToken) {
+        return runtimeToken;
+    }
+
+    const storedToken = safeGetLocalStorage(API_TOKEN_STORAGE_KEY);
+    return typeof storedToken === "string" ? storedToken.trim() : "";
+}
+
+function appendApiTokenToUrl(url, token) {
+    if (!token || typeof token !== "string") {
+        return url;
+    }
+
+    try {
+        const parsedUrl = new URL(url, window.location.href);
+        parsedUrl.searchParams.set("apitoken", token);
+        return parsedUrl.toString();
+    } catch (_) {
+        return url;
+    }
+}
+
+function resolveApiBaseUrl() {
+    const configured = "__SOLARA_API_BASE_URL__";
+    return configured && configured !== "__SOLARA_API_BASE_URL__" ? configured : "/proxy";
+}
+
 function buildAudioProxyUrl(url) {
     if (!url || typeof url !== "string") return url;
 
@@ -455,7 +494,8 @@ function buildAudioProxyUrl(url) {
         }
 
         if (parsedUrl.protocol === "http:" && /(^|\.)kuwo\.cn$/i.test(parsedUrl.hostname)) {
-            return `${API.baseUrl}?target=${encodeURIComponent(parsedUrl.toString())}`;
+            const proxyUrl = `${API.baseUrl}?target=${encodeURIComponent(parsedUrl.toString())}`;
+            return appendApiTokenToUrl(proxyUrl, resolveClientApiToken());
         }
 
         return parsedUrl.toString();
@@ -818,8 +858,35 @@ const LyricsCacheManager = {
 };
 
 // API配置 - 支持环境变量配置
+let clientApiToken = resolveClientApiToken();
+
 const API = {
-    baseUrl: "__SOLARA_API_BASE_URL__" || "/proxy",
+    baseUrl: resolveApiBaseUrl(),
+
+    get token() {
+        return clientApiToken;
+    },
+
+    setToken: (token) => {
+        const normalizedToken = typeof token === "string" ? token.trim() : "";
+        clientApiToken = normalizedToken;
+
+        try {
+            if (normalizedToken) {
+                localStorage.setItem(API_TOKEN_STORAGE_KEY, normalizedToken);
+            } else {
+                localStorage.removeItem(API_TOKEN_STORAGE_KEY);
+            }
+        } catch (error) {
+            console.warn("保存 API Token 失败", error);
+        }
+
+        return clientApiToken;
+    },
+
+    withToken: (url) => {
+        return appendApiTokenToUrl(url, clientApiToken);
+    },
 
     generateSignature: () => {
         return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
@@ -827,10 +894,16 @@ const API = {
 
     fetchJson: async (url) => {
         try {
-            const response = await fetch(url, {
-                headers: {
-                    "Accept": "application/json",
-                },
+            const requestUrl = API.withToken(url);
+            const headers = {
+                "Accept": "application/json",
+            };
+            if (clientApiToken) {
+                headers["X-API-Token"] = clientApiToken;
+            }
+
+            const response = await fetch(requestUrl, {
+                headers,
             });
 
             if (!response.ok) {
@@ -852,7 +925,7 @@ const API = {
 
     search: async (keyword, source = "netease", count = 20, page = 1) => {
         const signature = API.generateSignature();
-        const url = `${API.baseUrl}?types=search&source=${source}&name=${encodeURIComponent(keyword)}&count=${count}&pages=${page}&s=${signature}`;
+        const url = API.withToken(`${API.baseUrl}?types=search&source=${source}&name=${encodeURIComponent(keyword)}&count=${count}&pages=${page}&s=${signature}`);
 
         try {
             debugLog(`API请求: ${url}`);
@@ -906,7 +979,7 @@ const API = {
             offset: String(offset),
             s: signature,
         });
-        const url = `${API.baseUrl}?${params.toString()}`;
+        const url = API.withToken(`${API.baseUrl}?${params.toString()}`);
 
         try {
             const data = await API.fetchJson(url);
@@ -932,7 +1005,7 @@ const API = {
 
     getSongUrl: (song, quality = "320") => {
         const signature = API.generateSignature();
-        return `${API.baseUrl}?types=url&id=${song.id}&source=${song.source || "netease"}&br=${quality}&s=${signature}`;
+        return API.withToken(`${API.baseUrl}?types=url&id=${song.id}&source=${song.source || "netease"}&br=${quality}&s=${signature}`);
     },
 
     // 获取音频数据（带缓存）
@@ -995,12 +1068,12 @@ const API = {
 
     getLyric: (song) => {
         const signature = API.generateSignature();
-        return `${API.baseUrl}?types=lyric&id=${song.lyric_id || song.id}&source=${song.source || "netease"}&s=${signature}`;
+        return API.withToken(`${API.baseUrl}?types=lyric&id=${song.lyric_id || song.id}&source=${song.source || "netease"}&s=${signature}`);
     },
 
     getPicUrl: (song) => {
         const signature = API.generateSignature();
-        return `${API.baseUrl}?types=pic&id=${song.pic_id}&source=${song.source || "netease"}&size=300&s=${signature}`;
+        return API.withToken(`${API.baseUrl}?types=pic&id=${song.pic_id}&source=${song.source || "netease"}&size=300&s=${signature}`);
     },
 
     // 新增：测试歌词 API

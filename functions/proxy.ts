@@ -97,6 +97,45 @@ function createCorsHeaders(init?: Headers): Headers {
   return headers;
 }
 
+function getExpectedApiToken(env: Record<string, unknown> | undefined): string {
+  const configured = typeof env?.APITOKEN === "string" ? env.APITOKEN.trim() : "";
+  return configured || "123qweasdzxc";
+}
+
+function getProvidedApiToken(request: Request, url: URL): string {
+  const headerToken = request.headers.get("X-API-Token")?.trim();
+  if (headerToken) {
+    return headerToken;
+  }
+
+  const authorization = request.headers.get("Authorization")?.trim();
+  if (authorization) {
+    const [scheme, token] = authorization.split(/\s+/, 2);
+    if (scheme?.toLowerCase() === "bearer" && token?.trim()) {
+      return token.trim();
+    }
+  }
+
+  return (url.searchParams.get("apitoken") || "").trim();
+}
+
+function createUnauthorizedResponse(): Response {
+  return new Response(
+    JSON.stringify({
+      error: "Unauthorized",
+      message: "Invalid API token",
+    }),
+    {
+      status: 401,
+      headers: (() => {
+        const headers = createCorsHeaders();
+        headers.set("Content-Type", "application/json; charset=utf-8");
+        return headers;
+      })(),
+    }
+  );
+}
+
 async function fetchWithRetry(url: string, options: RequestInit): Promise<Response> {
   let lastError: Error | null = null;
 
@@ -323,7 +362,7 @@ async function proxyApiRequest(url: URL, request: Request): Promise<Response> {
   );
 }
 
-export async function onRequest({ request }: { request: Request }): Promise<Response> {
+export async function onRequest({ request, env }: { request: Request; env?: Record<string, unknown> }): Promise<Response> {
   if (request.method === "OPTIONS") {
     return handleOptions();
   }
@@ -333,6 +372,13 @@ export async function onRequest({ request }: { request: Request }): Promise<Resp
   }
 
   const url = new URL(request.url);
+  const expectedApiToken = getExpectedApiToken(env);
+  const providedApiToken = getProvidedApiToken(request, url);
+
+  if (!providedApiToken || providedApiToken !== expectedApiToken) {
+    return createUnauthorizedResponse();
+  }
+
   const target = url.searchParams.get("target");
 
   if (target) {

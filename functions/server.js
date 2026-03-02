@@ -5,12 +5,46 @@ const fetch = require('node-fetch');
 const app = express();
 const PORT = 8080;
 const API_BASE_URL = "https://music-api.gdstudio.xyz/api.php";
+const API_TOKEN = (process.env.APITOKEN || '123qweasdzxc').trim();
 const MAX_RETRIES = 3;
 const RETRY_DELAY_BASE = 1000; // 1秒基础延迟
 
 // 中间件
 app.use(cors());
 app.use(express.json());
+
+function getProvidedApiToken(req) {
+    const headerToken = (req.get('X-API-Token') || '').trim();
+    if (headerToken) {
+        return headerToken;
+    }
+
+    const authorization = (req.get('Authorization') || '').trim();
+    if (authorization) {
+        const [scheme, token] = authorization.split(/\s+/, 2);
+        if ((scheme || '').toLowerCase() === 'bearer' && (token || '').trim()) {
+            return token.trim();
+        }
+    }
+
+    return (req.query.apitoken || '').toString().trim();
+}
+
+app.use((req, res, next) => {
+    if (req.method === 'OPTIONS' || req.path === '/health') {
+        return next();
+    }
+
+    const providedToken = getProvidedApiToken(req);
+    if (!providedToken || providedToken !== API_TOKEN) {
+        return res.status(401).json({
+            error: 'Unauthorized',
+            message: 'Invalid API token'
+        });
+    }
+
+    next();
+});
 
 // 允许的Kuwo域名
 const KUWO_HOST_PATTERN = /(^|\.)kuwo\.cn$/i;

@@ -41,6 +41,21 @@
 - API 基地址定义在 index.html 中的 `API.baseUrl`（约 1300 行），可替换为自建接口域名。
 - 默认主题、播放模式等偏好可在 `state` 初始化逻辑中按需调整。
 
+## 🔑 API Token 配置
+- **服务端（必校验）**：在 Cloudflare Pages 的环境变量中设置 `APITOKEN`，未设置时默认值为 `123qweasdzxc`。
+- 所有对 `/proxy` 的调用都必须携带 token；缺失或错误会返回 `401 Unauthorized`。
+- 支持三种传参方式：`X-API-Token` 请求头、`Authorization: Bearer <token>`、查询参数 `apitoken`。
+- **Docker 推荐安全模式（前端不暴露 token）**：
+	- `web` 服务通过 Nginx 转发 `/proxy` 到内部 `api` 服务；
+	- Nginx 在服务端自动注入 `X-API-Token`；
+	- 浏览器侧不需要配置 token（`SOLARA_API_TOKEN` 保持空）。
+
+### Docker Compose（推荐）
+- 项目根目录已提供 `docker-compose.yml` 示例。
+- 需要保证 `api` 的 `APITOKEN` 与 `web` 的 `SOLARA_PROXY_TOKEN` 值一致。
+- 建议只对外暴露 `web` 端口，不暴露 `api` 端口（示例中仅 `web` 映射 `8088:80`）。
+- 启动命令：`docker compose up -d --build`
+
 ## 🧭 探索雷达
 - 探索雷达会在「流行、摇滚、古典音乐、民谣、电子、爵士、说唱、乡村、蓝调、R&B、金属、嘻哈、轻音乐」等分类中随机挑选关键词，自动为播放列表补充新歌。
 - 如果想排除某些不喜欢的分类，可在 `js/index.js` 中的 `EXPLORE_RADAR_GENRES` 数组里删除对应条目或新增自己喜欢的分类，保存后重新部署即可生效。

@@ -33,7 +33,10 @@ RUN chown -R nginx:nginx /usr/share/nginx/html && \
 EXPOSE 80
 
 # 设置环境变量默认值
-ENV SOLARA_API_BASE_URL="http://10.10.10.4:9308/proxy"
+ENV SOLARA_API_BASE_URL="/proxy"
+ENV SOLARA_INTERNAL_API_URL="http://api:8080"
+ENV SOLARA_PROXY_TOKEN=""
+ENV SOLARA_API_TOKEN=""
 
 # 设置健康检查（改用 curl）
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \

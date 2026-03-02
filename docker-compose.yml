@@ -1,0 +1,27 @@
+services:
+  api:
+    build:
+      context: ./functions
+      dockerfile: Dockerfile
+    container_name: solara-api
+    environment:
+      APITOKEN: "请替换成高强度随机token"
+    expose:
+      - "8080"
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: solara-web
+    depends_on:
+      - api
+    environment:
+      SOLARA_API_BASE_URL: "/proxy"
+      SOLARA_INTERNAL_API_URL: "http://api:8080"
+      SOLARA_PROXY_TOKEN: "请替换成与APITOKEN相同的token"
+      SOLARA_API_TOKEN: ""
+    ports:
+      - "8088:80"
+    restart: unless-stopped
