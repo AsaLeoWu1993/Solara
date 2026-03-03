@@ -33,8 +33,35 @@ body.mobile-view {
     --mobile-ring-vertical-shift: calc((env(safe-area-inset-top, 0px) * 0.5) - 24px);
 }
 
+body.mobile-view::before,
+body.mobile-view::after {
+    content: "";
+    position: fixed;
+    inset: -12%;
+    pointer-events: none;
+    z-index: -3;
+    opacity: 0.7;
+}
+
+body.mobile-view::before {
+    background:
+        radial-gradient(58% 44% at 50% 4%, rgba(26, 188, 156, 0.26) 0%, transparent 72%),
+        radial-gradient(46% 38% at 14% 72%, rgba(26, 188, 156, 0.18) 0%, transparent 78%);
+    animation: mobileGlowFloat 18s ease-in-out infinite alternate;
+}
+
+body.mobile-view::after {
+    background:
+        radial-gradient(44% 34% at 86% 22%, rgba(26, 188, 156, 0.16) 0%, transparent 78%),
+        radial-gradient(40% 30% at 50% 92%, rgba(26, 188, 156, 0.14) 0%, transparent 80%);
+    animation: mobileGlowFloatReverse 22s ease-in-out infinite alternate;
+}
+
 body.mobile-view .background-stage {
-    display: none;
+    display: block;
+    z-index: -4;
+    opacity: 0.72;
+    filter: saturate(110%);
 }
 
 @media screen and (orientation: portrait) {
@@ -72,6 +99,52 @@ body.mobile-view .background-stage {
     body.mobile-view .background-stage__layer {
         transform: scale(1.12);
         filter: saturate(112%);
+    }
+}
+
+body.mobile-view .background-stage__layer {
+    animation: mobileBackgroundDrift 26s ease-in-out infinite alternate;
+    will-change: transform, opacity;
+}
+
+body.mobile-view .background-stage__layer--transition {
+    animation-duration: 34s;
+}
+
+@keyframes mobileGlowFloat {
+    0% {
+        transform: translate3d(-1%, 0, 0) scale(1);
+        opacity: 0.62;
+    }
+    100% {
+        transform: translate3d(1.5%, 1.6%, 0) scale(1.06);
+        opacity: 0.84;
+    }
+}
+
+@keyframes mobileGlowFloatReverse {
+    0% {
+        transform: translate3d(1.2%, -0.8%, 0) scale(1.02);
+        opacity: 0.5;
+    }
+    100% {
+        transform: translate3d(-1.4%, 1.2%, 0) scale(1.08);
+        opacity: 0.76;
+    }
+}
+
+@keyframes mobileBackgroundDrift {
+    0% {
+        transform: translate3d(0, 0, 0) scale(1.08);
+        opacity: 0.88;
+    }
+    50% {
+        transform: translate3d(0.9%, -1.1%, 0) scale(1.12);
+        opacity: 1;
+    }
+    100% {
+        transform: translate3d(-1%, 0.8%, 0) scale(1.15);
+        opacity: 0.9;
     }
 }
 

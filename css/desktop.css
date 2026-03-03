@@ -345,6 +345,15 @@ html.desktop-view .background-stage {
     overflow: hidden;
 }
 
+html.desktop-view .background-stage__layer {
+    animation: desktopBgLayerDrift 24s ease-in-out infinite alternate;
+    will-change: transform, opacity;
+}
+
+html.desktop-view .background-stage__layer--transition {
+    animation-duration: 30s;
+}
+
 /* Animated gradient overlay */
 html.desktop-view .background-stage::before {
     content: "";
@@ -383,6 +392,30 @@ html.desktop-view .background-stage::after {
     pointer-events: none;
     z-index: 0;
     filter: blur(60px);
+}
+
+html.desktop-view .background-stage::before,
+html.desktop-view .background-stage::after {
+    will-change: transform, opacity;
+}
+
+html.desktop-view .background-stage::after {
+    box-shadow: 0 0 120px rgba(26, 188, 156, 0.18);
+}
+
+@keyframes desktopBgLayerDrift {
+    0% {
+        transform: translate3d(0, 0, 0) scale(1);
+        opacity: 0.92;
+    }
+    50% {
+        transform: translate3d(0.8%, -0.6%, 0) scale(1.02);
+        opacity: 1;
+    }
+    100% {
+        transform: translate3d(-0.8%, 0.7%, 0) scale(1.03);
+        opacity: 0.95;
+    }
 }
 
 @keyframes floatOrb {

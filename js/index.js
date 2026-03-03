@@ -1448,6 +1448,8 @@ let sourceMenuPositionFrame = null;
 let qualityMenuPositionFrame = null;
 let floatingMenuListenersAttached = false;
 let qualityMenuAnchor = null;
+let qualityMenuHomeParent = null;
+let sourceMenuHomeParent = null;
 
 function runWithoutTransition(element, callback) {
     if (!element || typeof callback !== "function") return;
@@ -2379,6 +2381,18 @@ function buildSourceMenu() {
     }
 }
 
+function ensureSourceMenuInBodyLayer() {
+    if (!dom.sourceMenu || !document.body) {
+        return;
+    }
+    if (!isElementNode(sourceMenuHomeParent)) {
+        sourceMenuHomeParent = dom.sourceMenu.parentElement;
+    }
+    if (dom.sourceMenu.parentElement !== document.body) {
+        document.body.appendChild(dom.sourceMenu);
+    }
+}
+
 function updateSourceLabel() {
     const option = SOURCE_OPTIONS.find(item => item.value === state.searchSource) || SOURCE_OPTIONS[0];
     if (!option || !dom.sourceSelectLabel || !dom.sourceSelectButton) return;
@@ -2395,37 +2409,50 @@ function updateSourceMenuPosition() {
     const menu = dom.sourceMenu;
     const button = dom.sourceSelectButton;
     const spacing = 10;
-    const buttonWidth = Math.ceil(button.getBoundingClientRect().width);
+    const buttonRect = button.getBoundingClientRect();
+    const viewportWidth = Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0);
+    const viewportHeight = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0);
+    const buttonWidth = Math.ceil(buttonRect.width);
     const effectiveWidth = Math.max(buttonWidth, 140);
 
+    menu.classList.add("floating");
     menu.style.left = "0px";
+    menu.style.top = "0px";
+    menu.style.bottom = "";
     menu.style.width = `${effectiveWidth}px`;
     menu.style.minWidth = `${effectiveWidth}px`;
     menu.style.maxWidth = `${effectiveWidth}px`;
 
     const menuHeight = Math.max(menu.scrollHeight, 0);
-    const buttonRect = button.getBoundingClientRect();
-    const viewportHeight = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0);
     const spaceBelow = Math.max(viewportHeight - buttonRect.bottom - spacing, 0);
     const canOpenUpwards = buttonRect.top - spacing - menuHeight >= 0;
     const shouldOpenUpwards = menuHeight > spaceBelow && canOpenUpwards;
 
+    const menuWidth = Math.round(menu.getBoundingClientRect().width) || effectiveWidth;
+    const minLeft = spacing;
+    const maxLeft = Math.max(minLeft, viewportWidth - spacing - menuWidth);
+    const left = Math.min(Math.max(Math.round(buttonRect.left), minLeft), maxLeft);
+    let top;
+
     if (shouldOpenUpwards) {
         menu.classList.add("open-upwards");
         menu.classList.remove("open-downwards");
-        menu.style.top = "";
-        menu.style.bottom = `${button.offsetHeight + spacing}px`;
+        top = Math.round(buttonRect.top - spacing - menuHeight);
     } else {
         menu.classList.add("open-downwards");
         menu.classList.remove("open-upwards");
-        menu.style.bottom = "";
-        menu.style.top = `${button.offsetHeight + spacing}px`;
+        top = Math.round(buttonRect.bottom + spacing);
     }
+
+    const minTop = spacing;
+    const maxTop = Math.max(minTop, viewportHeight - spacing - menuHeight);
+    menu.style.top = `${Math.min(Math.max(top, minTop), maxTop)}px`;
+    menu.style.left = `${left}px`;
 }
 
 function resetSourceMenuPosition() {
     if (!dom.sourceMenu) return;
-    dom.sourceMenu.classList.remove("open-upwards", "open-downwards");
+    dom.sourceMenu.classList.remove("floating", "open-upwards", "open-downwards");
     dom.sourceMenu.style.top = "";
     dom.sourceMenu.style.left = "";
     dom.sourceMenu.style.bottom = "";
@@ -2438,6 +2465,7 @@ function openSourceMenu() {
     if (!dom.sourceMenu || !dom.sourceSelectButton) return;
     state.sourceMenuOpen = true;
     ensureFloatingMenuListeners();
+    ensureSourceMenuInBodyLayer();
     buildSourceMenu();
     dom.sourceMenu.classList.add("show");
     dom.sourceSelectButton.classList.add("active");
@@ -2542,6 +2570,18 @@ function getQualityMenuAnchor() {
     const fallback = resolveQualityAnchor();
     qualityMenuAnchor = fallback;
     return fallback;
+}
+
+function ensureQualityMenuInBodyLayer() {
+    if (!dom.playerQualityMenu || !document.body) {
+        return;
+    }
+    if (!isElementNode(qualityMenuHomeParent)) {
+        qualityMenuHomeParent = dom.playerQualityMenu.parentElement;
+    }
+    if (dom.playerQualityMenu.parentElement !== document.body) {
+        document.body.appendChild(dom.playerQualityMenu);
+    }
 }
 
 function updateQualityLabel() {
@@ -2661,6 +2701,7 @@ function openPlayerQualityMenu(anchor) {
     state.qualityMenuOpen = true;
     ensureFloatingMenuListeners();
     const menu = dom.playerQualityMenu;
+    ensureQualityMenuInBodyLayer();
     setQualityAnchorState(qualityMenuAnchor, true);
     menu.classList.add("floating");
     menu.classList.remove("show");

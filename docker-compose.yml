@@ -1,6 +1,6 @@
 services:
   solara:
-    image: 10.10.10.4:5000/solara:latest
+    image: solara:latest
     container_name: solara
     restart: unless-stopped
     # depends_on:
@@ -12,20 +12,19 @@ services:
       # 2) 容器内地址: http://solara-api:8080
       # 3) 相对路径: /proxy
       - SOLARA_API_BASE_URL=https://api.example.com/proxy/proxy
-      - SOLARA_PROXY_TOKEN=123456
+      - SOLARA_PROXY_TOKEN=123456  # 代理 token，需与 API 端一致
+      - SOLARA_API_TOKEN=123456    # API token，需与 API 端一致
       - SOLARA_CACHE_TTL=30
     ports:
       - 9307:80
     networks:
       - 1panel-network
   # solara-api:
-  #   image: 10.10.10.4:5000/solara-api:latest
+  #   image: solara-api:latest
   #   container_name: solara-api
   #   restart: unless-stopped
   #   environment:
   #     - APITOKEN=123456
-  #     - http_proxy=http://172.17.0.1:7890
-  #     - https_proxy=http://172.17.0.1:7890
   #   ports:
   #     - 9308:8080
   #   networks:

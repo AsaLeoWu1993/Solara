@@ -658,6 +658,15 @@ body.background-transitioning .background-stage__layer--transition {
     pointer-events: auto;
 }
 
+.source-menu.floating {
+    position: fixed;
+    left: 0;
+    top: 0;
+    right: auto;
+    bottom: auto;
+    will-change: opacity, transform;
+}
+
 .source-menu.open-upwards {
     top: auto;
     bottom: calc(100% + 10px);
