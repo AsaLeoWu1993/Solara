@@ -53,6 +53,7 @@
 	- `web` 服务通过 Nginx 转发 `/proxy` 到 `SOLARA_API_BASE_URL` 对应上游；
 	- Nginx 在服务端自动注入 `X-API-Token`；
 	- 浏览器侧不需要配置 token。
+- **Docker 外部直连模式（可选）**：当 `SOLARA_API_BASE_URL` 配置为外部域名时，前端会直接请求该地址；可通过 `SOLARA_API_TOKEN` 显式注入客户端 token，若未设置且已设置 `SOLARA_PROXY_TOKEN`，会自动回退使用 `SOLARA_PROXY_TOKEN`。
 
 ### Docker Compose（推荐）
 - 项目根目录已提供 `docker-compose.yml` 示例。

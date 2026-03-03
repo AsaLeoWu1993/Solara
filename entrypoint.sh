@@ -12,10 +12,14 @@ DEFAULT_CACHE_TTL_DAYS="7"
 # 设置默认代理Token（服务端注入）
 DEFAULT_PROXY_TOKEN=""
 
+# 设置默认客户端Token（仅在前端直连外部API时需要）
+DEFAULT_CLIENT_API_TOKEN=""
+
 # 使用环境变量或默认值
 API_BASE_URL=${SOLARA_API_BASE_URL:-$DEFAULT_API_BASE_URL}
 CACHE_TTL_DAYS=${SOLARA_CACHE_TTL:-$DEFAULT_CACHE_TTL_DAYS}
 PROXY_TOKEN=${SOLARA_PROXY_TOKEN:-$DEFAULT_PROXY_TOKEN}
+CLIENT_API_TOKEN=${SOLARA_API_TOKEN:-$DEFAULT_CLIENT_API_TOKEN}
 
 extract_url_host() {
 	printf '%s' "$1" | sed -e 's#^[a-zA-Z][a-zA-Z0-9+.-]*://##' -e 's#/.*$##' -e 's#:[0-9][0-9]*$##'
@@ -50,6 +54,11 @@ case "$API_BASE_URL" in
 		;;
 esac
 
+# 外部地址直连时，如未单独提供客户端Token，则回退使用服务端代理Token
+if [ "$CLIENT_API_BASE_URL" != "/proxy" ] && [ -z "$CLIENT_API_TOKEN" ] && [ -n "$PROXY_TOKEN" ]; then
+	CLIENT_API_TOKEN="$PROXY_TOKEN"
+fi
+
 # 将天数转换为毫秒 (天 * 24小时 * 60分钟 * 60秒 * 1000毫秒)
 CACHE_TTL_MS=$((CACHE_TTL_DAYS * 24 * 60 * 60 * 1000))
 
@@ -57,7 +66,7 @@ echo "配置API地址: $API_BASE_URL"
 echo "前端API地址: $CLIENT_API_BASE_URL"
 echo "Nginx代理上游: $NGINX_PROXY_PASS"
 echo "配置缓存时间: $CACHE_TTL_DAYS 天 ($CACHE_TTL_MS ms)"
-if [ -n "$API_TOKEN" ]; then
+if [ -n "$CLIENT_API_TOKEN" ]; then
 	echo "已配置客户端API Token"
 else
 	echo "未配置客户端API Token"
@@ -81,10 +90,12 @@ ESCAPED_API_BASE_URL=$(escape_sed_replacement "$JS_SAFE_API_BASE_URL")
 ESCAPED_NGINX_PROXY_PASS=$(escape_sed_replacement "$NGINX_PROXY_PASS")
 ESCAPED_CACHE_TTL_MS=$(escape_sed_replacement "$CACHE_TTL_MS")
 ESCAPED_PROXY_TOKEN=$(escape_sed_replacement "$PROXY_TOKEN")
+ESCAPED_CLIENT_API_TOKEN=$(escape_sed_replacement "$CLIENT_API_TOKEN")
 
-# 替换 index.html 中的占位符
+# 替换前端脚本中的占位符
 sed -i "s|__SOLARA_API_BASE_URL__|$ESCAPED_API_BASE_URL|g" /usr/share/nginx/html/js/index.js
 sed -i "s|__SOLARA_CACHE_TTL__|$ESCAPED_CACHE_TTL_MS|g" /usr/share/nginx/html/js/index.js
+sed -i "s|__SOLARA_API_TOKEN__|$ESCAPED_CLIENT_API_TOKEN|g" /usr/share/nginx/html/js/index.js
 
 # 替换 Nginx 配置占位符
 sed -i "s|__SOLARA_API_BASE_URL__|$ESCAPED_NGINX_PROXY_PASS|g" /etc/nginx/conf.d/default.conf
