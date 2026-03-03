@@ -452,7 +452,7 @@ function isSolaraPlaceholder(value) {
 }
 
 function resolveClientApiToken() {
-    const configuredToken = "__SOLARA_API_TOKEN__";
+    const configuredToken = "__SOLARA_BUILD_API_TOKEN__";
     const buildToken = configuredToken && !isSolaraPlaceholder(configuredToken)
         ? configuredToken.trim()
         : "";

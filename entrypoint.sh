@@ -95,7 +95,7 @@ ESCAPED_CLIENT_API_TOKEN=$(escape_sed_replacement "$CLIENT_API_TOKEN")
 # 替换前端脚本中的占位符
 sed -i "s|__SOLARA_API_BASE_URL__|$ESCAPED_API_BASE_URL|g" /usr/share/nginx/html/js/index.js
 sed -i "s|__SOLARA_CACHE_TTL__|$ESCAPED_CACHE_TTL_MS|g" /usr/share/nginx/html/js/index.js
-sed -i "s|__SOLARA_API_TOKEN__|$ESCAPED_CLIENT_API_TOKEN|g" /usr/share/nginx/html/js/index.js
+sed -i "s|__SOLARA_BUILD_API_TOKEN__|$ESCAPED_CLIENT_API_TOKEN|g" /usr/share/nginx/html/js/index.js
 
 # 替换 Nginx 配置占位符
 sed -i "s|__SOLARA_API_BASE_URL__|$ESCAPED_NGINX_PROXY_PASS|g" /etc/nginx/conf.d/default.conf
