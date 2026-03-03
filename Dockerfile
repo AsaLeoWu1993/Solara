@@ -34,7 +34,6 @@ EXPOSE 80
 
 # 设置环境变量默认值
 ENV SOLARA_API_BASE_URL="/proxy"
-ENV SOLARA_INTERNAL_API_URL="http://api:8080"
 ENV SOLARA_PROXY_TOKEN=""
 
 # 设置健康检查（改用 curl）

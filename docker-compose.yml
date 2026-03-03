@@ -7,9 +7,12 @@ services:
     #   - solara-api
     environment:
       - TZ=Asia/Shanghai
-      - SOLARA_API_BASE_URL=http://solara-api.asadalao.cn/proxy
-      - SOLARA_INTERNAL_API_URL=http://solara-api:8080
-      - SOLARA_PROXY_TOKEN=xfjsod1845vuiwanr7lhcykzb60g239eptmq0v7gpu5mj9vw
+      # 仅需配置 SOLARA_API_BASE_URL（无需 SOLARA_INTERNAL_API_URL）
+      # 1) 三方域名: https://api.example.com/proxy
+      # 2) 容器内地址: http://solara-api:8080
+      # 3) 相对路径: /proxy
+      - SOLARA_API_BASE_URL=https://api.example.com/proxy/proxy
+      - SOLARA_PROXY_TOKEN=123456
       - SOLARA_CACHE_TTL=30
     ports:
       - 9307:80

@@ -38,7 +38,11 @@
 3. 部署完成后，通过 Cloudflare Pages 分配的域名访问站点即可体验播放器。
 
 ## ⚙️ 配置提示
-- API 基地址定义在 index.html 中的 `API.baseUrl`（约 1300 行），可替换为自建接口域名。
+- Docker 部署时通过环境变量 `SOLARA_API_BASE_URL` 配置 API 地址（仅此一个变量，不再需要 `SOLARA_INTERNAL_API_URL`）。
+- `SOLARA_API_BASE_URL` 兼容三种写法：
+	- 三方域名（如 `https://api.example.com/proxy`）：前端与 Nginx 都直接使用该地址；
+	- 容器内/内网地址（如 `http://solara-api:8080`）：前端自动走 `/proxy`，Nginx 转发到该内网地址；
+	- 相对路径（如 `/proxy`）：前端走同源 `/proxy`，Nginx 转发到默认上游 `http://api:8080/proxy`。
 - 默认主题、播放模式等偏好可在 `state` 初始化逻辑中按需调整。
 
 ## 🔑 API Token 配置
@@ -46,12 +50,13 @@
 - 所有对 `/proxy` 的调用都必须携带 token；缺失或错误会返回 `401 Unauthorized`。
 - 支持三种传参方式：`X-API-Token` 请求头、`Authorization: Bearer <token>`、查询参数 `apitoken`。
 - **Docker 推荐安全模式（前端不暴露 token）**：
-	- `web` 服务通过 Nginx 转发 `/proxy` 到内部 `api` 服务；
+	- `web` 服务通过 Nginx 转发 `/proxy` 到 `SOLARA_API_BASE_URL` 对应上游；
 	- Nginx 在服务端自动注入 `X-API-Token`；
 	- 浏览器侧不需要配置 token。
 
 ### Docker Compose（推荐）
 - 项目根目录已提供 `docker-compose.yml` 示例。
+- 只需配置 `SOLARA_API_BASE_URL`，无需配置 `SOLARA_INTERNAL_API_URL`。
 - 需要保证 `api` 的 `APITOKEN` 与 `web` 的 `SOLARA_PROXY_TOKEN` 值一致。
 - 建议只对外暴露 `web` 端口，不暴露 `api` 端口（示例中仅 `web` 映射 `8088:80`）。
 - 启动命令：`docker compose up -d --build`
