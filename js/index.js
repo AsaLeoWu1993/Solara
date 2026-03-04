@@ -16,6 +16,7 @@ const dom = {
     mobileInlineLyrics: document.getElementById("mobileInlineLyrics"),
     mobileInlineLyricsScroll: document.getElementById("mobileInlineLyricsScroll"),
     mobileInlineLyricsContent: document.getElementById("mobileInlineLyricsContent"),
+    mobileInlineLyricsBackBtn: document.getElementById("mobileInlineLyricsBackBtn"),
     audioPlayer: document.getElementById("audioPlayer"),
     themeToggleButton: document.getElementById("themeToggleButton"),
     loadOnlineBtn: document.getElementById("loadOnlineBtn"),
@@ -258,6 +259,10 @@ function updateMobileInlineLyricsAria(isOpen) {
     dom.mobileInlineLyrics.setAttribute("aria-hidden", isOpen ? "false" : "true");
 }
 
+function hasMobileInlineLyricsHistoryState(historyState = window.history?.state) {
+    return Boolean(historyState && typeof historyState === "object" && historyState.solaraMobileInlineLyrics === true);
+}
+
 function setMobileInlineLyricsOpen(isOpen) {
     if (!isMobileView || !document.body || !dom.mobileInlineLyrics) {
         return;
@@ -293,13 +298,19 @@ function closeMobileInlineLyrics(options = {}) {
         return false;
     }
     setMobileInlineLyricsOpen(false);
+    if (!options.fromHistoryPop && state.mobileInlineLyricsHistoryPushed) {
+        state.mobileInlineLyricsHistoryPushed = false;
+        if (typeof window.history?.back === "function") {
+            window.history.back();
+        }
+    }
     if (options.force) {
         state.userScrolledLyrics = false;
     }
     return true;
 }
 
-function openMobileInlineLyrics() {
+function openMobileInlineLyrics(options = {}) {
     if (!isMobileView || !document.body) {
         return false;
     }
@@ -307,6 +318,13 @@ function openMobileInlineLyrics() {
         return false;
     }
     setMobileInlineLyricsOpen(true);
+    if (!options.fromHistoryPop && typeof window.history?.pushState === "function" && !hasMobileInlineLyricsHistoryState()) {
+        const currentState = window.history.state && typeof window.history.state === "object"
+            ? window.history.state
+            : {};
+        window.history.pushState({ ...currentState, solaraMobileInlineLyrics: true }, "", window.location.href);
+        state.mobileInlineLyricsHistoryPushed = true;
+    }
     state.userScrolledLyrics = false;
     window.requestAnimationFrame(() => {
         const container = dom.mobileInlineLyricsScroll || dom.mobileInlineLyrics;
@@ -318,6 +336,20 @@ function openMobileInlineLyrics() {
     });
     syncLyrics();
     return true;
+}
+
+function handleMobileInlineLyricsPopState(event) {
+    if (!isMobileView || !document.body) {
+        return;
+    }
+    const hasInlineLyricsState = hasMobileInlineLyricsHistoryState(event.state);
+    if (hasInlineLyricsState) {
+        state.mobileInlineLyricsHistoryPushed = true;
+        openMobileInlineLyrics({ fromHistoryPop: true });
+        return;
+    }
+    state.mobileInlineLyricsHistoryPushed = false;
+    closeMobileInlineLyrics({ fromHistoryPop: true });
 }
 
 function toggleMobileInlineLyrics() {
@@ -1152,6 +1184,7 @@ const state = {
     audioReadyForPalette: true,
     currentGradient: '',
     isMobileInlineLyricsOpen: false,
+    mobileInlineLyricsHistoryPushed: false,
     selectedSearchResults: new Set(),
     playbackRetryCount: 0,
     maxPlaybackRetries: 2, // 最多重试2次，即最多跳过3首失败的歌曲
@@ -3126,11 +3159,19 @@ function setupInteractions() {
         dom.mobileInlineLyrics.addEventListener("click", (event) => {
             event.preventDefault();
             event.stopPropagation();
-            if (!state.isMobileInlineLyricsOpen) {
-                return;
-            }
+        });
+    }
+
+    if (isMobileView && dom.mobileInlineLyricsBackBtn) {
+        dom.mobileInlineLyricsBackBtn.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
             closeMobileInlineLyrics();
         });
+    }
+
+    if (isMobileView) {
+        window.addEventListener("popstate", handleMobileInlineLyricsPopState);
     }
 
     dom.loadOnlineBtn.addEventListener("click", exploreOnlineMusic);

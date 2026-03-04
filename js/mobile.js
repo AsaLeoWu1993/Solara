@@ -27,6 +27,22 @@
         dom.mobileOverlayScrim.setAttribute("aria-hidden", hasOverlay ? "false" : "true");
     }
 
+    function syncMobileViewportHeightImpl() {
+        if (!document.documentElement) {
+            return;
+        }
+        const visualViewport = window.visualViewport;
+        const viewportHeight = Math.max(
+            visualViewport && typeof visualViewport.height === "number" ? visualViewport.height : 0,
+            window.innerHeight || 0,
+            document.documentElement.clientHeight || 0
+        );
+        if (!viewportHeight) {
+            return;
+        }
+        document.documentElement.style.setProperty("--mobile-vh", `${Math.round(viewportHeight)}px`);
+    }
+
     function openMobileSearchImpl() {
         if (!document.body) {
             return;
@@ -190,6 +206,14 @@
         }
         if (dom.mobileOverlayScrim) {
             dom.mobileOverlayScrim.setAttribute("aria-hidden", "true");
+        }
+
+        syncMobileViewportHeightImpl();
+        window.addEventListener("resize", syncMobileViewportHeightImpl, { passive: true });
+        window.addEventListener("orientationchange", syncMobileViewportHeightImpl, { passive: true });
+        if (window.visualViewport && typeof window.visualViewport.addEventListener === "function") {
+            window.visualViewport.addEventListener("resize", syncMobileViewportHeightImpl, { passive: true });
+            window.visualViewport.addEventListener("scroll", syncMobileViewportHeightImpl, { passive: true });
         }
 
         updateMobileOverlayScrim();
